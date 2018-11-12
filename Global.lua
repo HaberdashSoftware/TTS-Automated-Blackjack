@@ -189,6 +189,7 @@ function onload()
 		bAutoMinigames = getObjectFromGUID("c756e3"),
 		
 		bAllowChipTrading = getObjectFromGUID("3bac86"),
+		iMultiplyPayouts = getObjectFromGUID("fed1d0"),
 		
 		bDealerAceIsOne = getObjectFromGUID("1ab0a8"),
 	}
@@ -3281,6 +3282,10 @@ function calculatePayout(zone)
 			betMultiplier = 2
 		end
 	end
+	
+	local globalMultiplier = math.max(hostSettings.iMultiplyPayouts and hostSettings.iMultiplyPayouts.getValue() or 1, 1)
+	betMultiplier = betMultiplier * globalMultiplier
+	
 	if doublePayout and bonusCount < 5 then
 		return (betMultiplier * 2)
 	else
