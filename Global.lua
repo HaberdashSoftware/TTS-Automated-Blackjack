@@ -103,17 +103,17 @@ function onload()
 		Unused = getObjectFromGUID("9b7f31"),
 	}
 
-	bonusTable = {
-		getObjectFromGUID("91fe78"),
-		getObjectFromGUID("24ab87"),
-		getObjectFromGUID("87ad6d"),
-		getObjectFromGUID("83bc5a"),
-		getObjectFromGUID("8f532d"),
-		getObjectFromGUID("10fa12"),
-		getObjectFromGUID("4f5fd0"),
-		getObjectFromGUID("b31767"),
-		getObjectFromGUID("3f9f84")
-	}
+	-- bonusTable = {
+		-- getObjectFromGUID("91fe78"),
+		-- getObjectFromGUID("24ab87"),
+		-- getObjectFromGUID("87ad6d"),
+		-- getObjectFromGUID("83bc5a"),
+		-- getObjectFromGUID("8f532d"),
+		-- getObjectFromGUID("10fa12"),
+		-- getObjectFromGUID("4f5fd0"),
+		-- getObjectFromGUID("b31767"),
+		-- getObjectFromGUID("3f9f84")
+	-- }
 
 	--The names (in quotes) should all match the names on your cards.
 	--The values should match the value of those cards.
@@ -196,6 +196,9 @@ function onload()
 	
 	deckBag = getObjectFromGUID("eaa77b")
 	minigameBag = getObjectFromGUID("5b38f8")
+	bonusBag = getObjectFromGUID("91fe78")
+	
+	bonusObjects = {}
 	
 	--A zone where the deck is placed. Also used in tagging the deck for identification
 	deckZone = getObjectFromGUID("885bf4")
@@ -358,7 +361,7 @@ end
 --When an object is dropped by a player, we check if its name is on a powerup list
 function onObjectDropped(colorOfDropper, droppedObject)
 	local power = powerupEffectTable[droppedObject.getName()]
-	if power and not ((powerupBlock and bonusCount < 5)) then
+	if power and bonusCanUsePowerup(droppedObject) then
 		return checkPowerupDropZone(colorOfDropper, droppedObject, power.who, power.effect)
 	end
 	
@@ -1450,10 +1453,8 @@ function obtainCardNames(hand, cardList, deckList, figurineList)
 			end
 		end
 	end
-	if powerupBlock and bonusCount < 5 then else
-		for i, figurine in ipairs(figurineList) do
-			table.insert(cardNames, figurine.getName())
-		end
+	for i, figurine in ipairs(figurineList) do
+		table.insert(cardNames, figurine.getName())
 	end
 	objectSets[hand].count = #cardNames
 	addCardValues(hand, cardNames, facedownCount, facedownCard)
@@ -1714,7 +1715,40 @@ end
 
 
 
-
+function addBonus( pos )
+	if not pos then
+		pos = bonusZone.getPosition()
+		pos.y = pos.y - 1.7
+	end
+	
+	local params = {}
+	params.position = pos
+	
+	local autoBonuses = bonusBag.takeObject(params)
+	autoBonuses.shuffle()
+	
+	params.callback_function = activateBonus
+	
+	local chosenBonus
+	repeat
+		chosenBonus = autoBonuses.takeObject( params )
+		chosenBonus.setColorTint({r=0.25,g=0.25,b=0.25})
+		
+		for i=1,#bonusObjects do
+			if bonusObjects[i].getName()==chosenBonus.getName() then
+				destroyObject( chosenBonus )
+				chosenBonus = nil
+				break
+			end
+		end
+	until (chosenBonus~=nil) or (#autoBonuses.getObjects()==0)
+	
+	if chosenBonus then
+		table.insert( bonusObjects, chosenBonus )
+	end
+	
+	autoBonuses.destruct()
+end
 function bonusRound()
 	local playerList = getSeatedPlayers()
 	for i, player in ipairs(playerList) do
@@ -1723,51 +1757,24 @@ function bonusRound()
 			spawnRandomPowerup(set.zone)
 		end
 	end
-	if not bonusActive then
+	if not isBonusActive() then
 		clearBonus()
-		chosenBonus = math.random(1, #bonusTable)
-		local params = {}
-		params.position = bonusZone.getPosition()
-		params.position.y = params.position.y - 1.7
-		params.callback = "activateBonus"
-		params.callback_owner = Global
-		bonusObject = bonusTable[chosenBonus].takeObject(params)
-		bonusObject.setColorTint({r=0.25,g=0.25,b=0.25})
+		addBonus()
 	end
 end
 
-function activateBonus()
-	bonusObject.lock()
-	if chosenBonus >= 6 then
-		bonusActive = true
-		bonusCount = 5
-		if chosenBonus == 6 then
-			doublePayout = true
-		elseif chosenBonus == 8 then
-			pushOnBust = true
-		elseif chosenBonus == 9 then
-			revealDealer = true
-		elseif chosenBonus == 10 then
-			powerupBlock = true
-		end
+function activateBonus( obj )
+	obj.lock()
+	
+	if obj.getVar("onDeploy") then
+		obj.call("onDeploy")
 	else
-		bonusObject.setColorTint({r=1,g=1,b=1})
-		
-		if chosenBonus == 4 then
-			bonusObject.createButton({
-				label="Give", click_function="deployRupees", function_owner=Global,
-				position={0,0,0}, rotation={0,0,0}, width=450, height=450, font_size=150
-			})
-		elseif chosenBonus == 5 then
-			-- resetTimer(300)
-			
-			resetTimer( math.max(0, (bonusTimer.getValue() or 0)-900 ) )
-		end
+		obj.setColorTint({r=1,g=1,b=1})
 	end
 end
 
 function clearBonus()
-	if bonusObject == nil then
+	if #bonusObjects == 0 then
 		local objectList = bonusZone.getObjects()
 		for i, object in ipairs(objectList) do
 			if object.tag == "Coin" then
@@ -1776,40 +1783,90 @@ function clearBonus()
 			end
 		end
 	else
-		bonusObject.destruct()
-		bonusObject = nil
+		for i=#bonusObjects,1,-1 do
+			bonusObjects[i].destruct()
+			bonusObjects[i] = nil
+		end
 	end
-	bonusActive = false
-	bonusCount = 0
-	doublePayout = false
-	pushOnBust = false
-	revealDealer = false
-	powerupBlock = false
 end
 
-function countBonus()
-	bonusCount = bonusCount - 1
-	if bonusCount == 0 then handsRemain = " hands remaining - final hand."
-	elseif bonusCount == 1 then handsRemain = " hand remaining."
-	else handsRemain = " hands remaining." end
-	if bonusObject ~= nil then
-		bonusObject.setDescription(bonusCount .. handsRemain)
+local function RunBonusFunc( funcName, data )
+	local ret = nil
+	
+	for i=#bonusObjects,1,-1 do
+		local obj = bonusObjects[i]
+		if obj and obj~=NULL then
+			if obj.getVar(funcName) then
+				local newValue = obj.call(funcName, data)
+				
+				if newValue~=nil then
+					if firstResult then return ret end
+					
+					ret = newValue --  Uses value from oldest bonus, if there's multiple returns
+				end
+				
+				if obj==NULL then -- Does this check work on the same frame as removal?
+					table.remove(bonusObjects, i)
+				end
+			end
+		else
+			table.remove(bonusObjects, i)
+		end
 	end
+	
+	return ret
+end
+
+-- Active
+function isBonusActive()
+	return RunBonusFunc( "isActive")
+end
+
+-- Bool Checks
+function bonusShouldDealerReveal()
+	return RunBonusFunc( "shouldDealerReveal" )==true
+end
+function bonusCanUsePowerup( powerup )
+	return RunBonusFunc( "canUsePowerup", {powerup=powerup} )~=false
+end
+function bonusCanFlip( )
+	return RunBonusFunc( "canFlip" )==true
+end
+function bonusShouldBust( set )
+	return RunBonusFunc( "shouldBust", {set=set} )~=false
+end
+
+-- Numbers
+function bonusGetPayoutMultiplier( set, mult )
+	return RunBonusFunc( "payoutMultiplier", {set=set, betMultiplier=mult} )
+end
+
+-- Bonus Round Hooks
+function bonusPreRound() return RunBonusFunc( "preRoundStart" ) end
+function bonusOnRoundStart() return RunBonusFunc( "onRoundStart" ) end
+function bonusOnRoundEnd() return RunBonusFunc( "onRoundEnd" ) end
+
+
+function beginMiniGame()
+	local autoMinigames =  minigameBag.takeObject(params)
+	autoMinigames.shuffle()
+	
+	minigame = autoMinigames.takeObject(params)
+	inMinigame = true
+	
+	autoMinigames.destruct()
 end
 
 function deployRupees(o, color)
-	if color == "Black" or Player[color].promoted or Player[color].host then
-		local playerList = getSeatedPlayers()
-		for i, player in ipairs(playerList) do
-			local set = findObjectSetFromColor(player)
-			if set then
-				local bet = #findBetsInZone(set.zone)
-				if bet ~= 0 then
-					rupeePull(set.zone)
-				end
+	local playerList = getSeatedPlayers()
+	for i, player in ipairs(playerList) do
+		local set = findObjectSetFromColor(player)
+		if set then
+			local bet = #findBetsInZone(set.zone)
+			if bet ~= 0 then
+				rupeePull(set.zone)
 			end
 		end
-		clearBonus()
 	end
 end
 
@@ -1965,7 +2022,7 @@ end
 function dealDealer(whichCard)
 	for i, v in ipairs(whichCard) do
 		local pos = findCardPlacement(objectSets[1].zone, v)
-		if v ~= 2 or (revealDealer and bonusCount < 5) then
+		if v ~= 2 or (bonusShouldDealerReveal()) then
 			placeCard(pos, true, objectSets[1], v<=2)
 		else
 			placeCard(pos, false, objectSets[1], v<=2)
@@ -2030,7 +2087,7 @@ function cardPlacedCallback(obj, data)
 		obj.setRotation(rot)
 	end
 	
-	if data.isStarter and chosenBonus==7 and bonusActive and bonusCount<5 then
+	if data.isStarter and bonusCanFlip() then
 		obj.setTable("blackjack_playerSet", data.set)
 		
 		if data.set.color~="Dealer" then
@@ -2461,26 +2518,9 @@ function dealButtonPressed(o, color)
 	if (color == "Lua" or color == "Black" or Player[color].promoted or Player[color].host) then
 		setRoundState( 2 )
 		
-		if chosenBonus==3 and (hostSettings.bAutoMinigames and hostSettings.bAutoMinigames.getDescription()=="true") then
-			local params = {}
-			params.position = bonusZone.getPosition()
-			
-			local autoMinigames =  minigameBag.takeObject(params)
-			autoMinigames.shuffle()
-			
-			minigame = autoMinigames.takeObject(params)
-			inMinigame = true
-			
-			autoMinigames.destruct()
-			
-			chosenBonus = nil
-			if bonusObject then
-				bonusObject.destruct()
-				bonusObject = nil
-			end
-			
-			return
-		end
+		local override = bonusPreRound()
+		if override then return end
+		
 		inMinigame = false
 		if minigame and not (minigame==nil) then
 			destroyObject(minigame)
@@ -2530,14 +2570,8 @@ function dealButtonPressed(o, color)
 				clearCardsOnly(set.zone)
 			end
 			
-			if bonusObject then
-				bonusObject.setColorTint({r=1,b=1,g=1})
-			end
-			if bonusCount ~= 0 then
-				countBonus()
-			elseif bonusActive and bonusCount == 0 then
-				clearBonus()
-			end
+			bonusOnRoundStart()
+			
 			local playerList = getSeatedPlayers()
 			-- local playerList = {"White", "Brown", "Red", "Orange", "Yellow", "Green", "Teal", "Blue", "Purple", "Pink"} --debug line
 			dealOrder = {}
@@ -3158,6 +3192,10 @@ function payButtonPressed(o, color)
 		
 		setRoundState( 1, hostSettings.iTimeBet and hostSettings.iTimeBet.getValue() or 30 )
 		
+		if not inMinigame then
+			bonusOnRoundEnd()
+		end
+		
 		inMinigame = false
 		if minigame and not (minigame==nil) then
 			destroyObject(minigame)
@@ -3191,7 +3229,7 @@ function payButtonPressed(o, color)
 							end
 						end
 					else
-						if pushOnBust and bonusCount < 5 and value > 21 then
+						if value > 21 and not bonusShouldBust(set) then
 							-- Unlock Chips
 							local zoneObjectList = set.zone.getObjects()
 							for j, bet in ipairs(zoneObjectList) do
@@ -3284,13 +3322,10 @@ function calculatePayout(zone)
 	end
 	
 	local globalMultiplier = math.max(hostSettings.iMultiplyPayouts and hostSettings.iMultiplyPayouts.getValue() or 1, 1)
-	betMultiplier = betMultiplier * globalMultiplier
+	betMultiplier = bonusGetPayoutMultiplier( set, betMultiplier ) or betMultiplier
 	
-	if doublePayout and bonusCount < 5 then
-		return (betMultiplier * 2)
-	else
-		return betMultiplier
-	end
+	
+	return betMultiplier
 end
 
 function getPrestige(zone)
