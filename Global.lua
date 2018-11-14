@@ -1790,8 +1790,8 @@ function clearBonus()
 	end
 end
 
-local function RunBonusFunc( funcName, data )
-	local ret = nil
+local function RunBonusFunc( funcName, data, returnFunc )
+	local ret = {}
 	
 	for i=#bonusObjects,1,-1 do
 		local obj = bonusObjects[i]
@@ -1800,9 +1800,10 @@ local function RunBonusFunc( funcName, data )
 				local newValue = obj.call(funcName, data)
 				
 				if newValue~=nil then
-					if firstResult then return ret end
+					-- if firstResult then return ret end
 					
-					ret = newValue --  Uses value from oldest bonus, if there's multiple returns
+					-- ret = newValue --  Uses value from oldest bonus, if there's multiple returns
+					table.insert( ret, newValue )
 				end
 				
 				if obj==NULL then -- Does this check work on the same frame as removal?
@@ -1814,7 +1815,11 @@ local function RunBonusFunc( funcName, data )
 		end
 	end
 	
-	return ret
+	if returnFunc then
+		return returnFunc(ret) -- Let the call decide which it value wants
+	else
+		return ret[#ret] -- Last entry in table is from the oldest bonus
+	end
 end
 
 -- Active
@@ -1838,7 +1843,19 @@ end
 
 -- Numbers
 function bonusGetPayoutMultiplier( set, mult )
-	return RunBonusFunc( "payoutMultiplier", {set=set, betMultiplier=mult} )
+	return RunBonusFunc( "payoutMultiplier", {set=set, betMultiplier=mult}, function(data)
+		-- This function ensures we always return the largest multiplier
+		-- Useful when there's multiple bonuses
+		local value
+		
+		for i=1,#data do
+			if (not value) or data[i]>value then
+				value = data[i]
+			end
+		end
+		
+		return value
+	end)
 end
 
 -- Bonus Round Hooks
