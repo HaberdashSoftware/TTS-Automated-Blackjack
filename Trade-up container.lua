@@ -31,7 +31,8 @@ end
 
 local waitTimer
 function doTradeUp(s, strCol)
-	if not (strCol and (Player[strCol].admin or self.getName():lower():find(strCol:lower()))) then
+	local ourColor = strCol and self.getName():lower():find(strCol:lower())
+	if not (strCol and (Player[strCol].admin or ourColor)) then
 		broadcastToColor( "This does not belong to you!", strCol, {1,0.2,0.2} )
 		return
 	end
@@ -41,19 +42,28 @@ function doTradeUp(s, strCol)
 	local params = {}
 	local chips = {}
 	
+	local plyID = Player[strCol].steam_id
 	-- Find valid chips
 	for i = #contents,1,-1 do
 		if nameToIndex[contents[i].name] then
 			params.index = contents[i].index
 			
 			local newObj = self.takeObject(params)
+			
 			if newObj then
-				local count = newObj.getQuantity()
-				if count==-1 then count = 1 end
-				
-				chips[nameToIndex[contents[i].name]] = (chips[nameToIndex[contents[i].name]] or 0) + count
-				
-				newObj.destruct()
+				local chipID = contents[i].description:match("^(%d+) %- .*") 
+				if ourColor and (chipID and chipID~=plyID) and not Player[strCol].admin then
+					broadcastToColor( ("Removed object \"%s\" (Does not belong to you)"):format(contents[i].name), strCol, {1,0.2,0.2} )
+					
+					newObj.destruct()
+				else
+					local count = newObj.getQuantity()
+					if count==-1 then count = 1 end
+					
+					chips[nameToIndex[contents[i].name]] = (chips[nameToIndex[contents[i].name]] or 0) + count
+					
+					newObj.destruct()
+				end
 			end
 		end
 	end

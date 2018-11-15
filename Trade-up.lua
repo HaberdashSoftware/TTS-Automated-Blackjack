@@ -232,9 +232,9 @@ function convertStart(zone, color, upORdown, override)
             end
         else
             --If no storage bag in zone, then it continues on with the conversion
-            local chipsInZone = locateChipsInZone(zone)
+            local chipsInZone = locateChipsInZone(zone, color)
             if chipsInZone == nil then
-                broadcastToColor("Error: No chips in zone.", color, {1,0.25,0.25})
+                broadcastToColor("Error: No valid chips in zone.", color, {1,0.25,0.25})
             else
                 --Gets a list of chips to convert
                 local conversionList = {}
@@ -266,12 +266,14 @@ function convertStart(zone, color, upORdown, override)
 end
 
 --Creates a list of chips that match chipList entries in the zone
-function locateChipsInZone(zone)
+function locateChipsInZone(zone, color)
     local chipsInZone = {}
     deleteList = {}
+	local plyID = Player[color].steam_id
     for i, object in ipairs(zone.getObjects()) do
         for j, chip in ipairs(chipList) do
-            if object.getName() == chip.name then
+			local chipID = object.getDescription():match("^(%d+) %- .*")
+            if object.getName() == chip.name and (not (chipID and chipID~=plyID)) then
                 local numberInStack = math.abs(object.getQuantity())
                 if chipsInZone[chip.name] then
                     chipsInZone[chip.name] = chipsInZone[chip.name] + numberInStack
