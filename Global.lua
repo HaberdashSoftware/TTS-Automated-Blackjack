@@ -2751,7 +2751,7 @@ function beginTurnTimer(set, supressMessage)
 		
 		setRoundState( 2, turnTime )
 		
-		if not supressMessage then
+		if Player[set.SplitUser and set.SplitUser.color or set.color].seated and not supressMessage then
 			broadcastToColor( ("It's your turn. You have %i seconds to take an action or you will be forced to stand."):format(turnTime), set.SplitUser and set.SplitUser.color or set.color, {0.25,1,0.25})
 		end
 	end
@@ -3412,6 +3412,8 @@ function processPayout(zone, iterations, lockedOnly)
 	local zoneObjects = zone.getObjects()
 	local badBagObjects = 0
 	
+	local plyID = Player[set.SplitUser and set.SplitUser.color or set.color].seated and Player[set.SplitUser and set.SplitUser.color or set.color].steam_id
+	
 	for j, bet in ipairs(zoneObjects) do
 		local wasLocked = {}
 		if ((bet.tag == "Chip" and not powerupEffectTable[bet.getName()]) or (bet.tag == "Bag" and bet.getName():sub(1,11)~="Player save")) then
@@ -3455,8 +3457,35 @@ function processPayout(zone, iterations, lockedOnly)
 					clone.setLuaScript( selfDestructScript:format(((iterations/10)+2)*1.25) )
 				-- end
 				
-				for i=1, iterations do
-					delayedCallback('payBet', {set=set, bet=clone, final=(i==iterations)}, (i/10))
+				
+				local betID = bet.getDescription():match("^(%d+) %- .*")
+				if betID and betID~=plyID then
+					local foundPly = false
+					local playerList = getSeatedPlayers()
+					for _, col in ipairs(playerList) do
+						local targetSet = findObjectSetFromColor(col)
+						if Player[col].seated and targetSet then
+							foundPly = true
+							for i=1, iterations do
+								delayedCallback('payBet', {set=targetSet, bet=clone, final=(i==iterations)}, (i/10))
+							end
+							
+							local setPos = targetSet.zone.getPosition()
+							bet.setPosition( setPos )
+							
+							break
+						end
+					end
+					
+					if not foundPly then
+						-- TODO: Push objects to autosave
+						destroyObject(bet)
+						destroyObject(clone)
+					end
+				else
+					for i=1, iterations do
+						delayedCallback('payBet', {set=set, bet=clone, final=(i==iterations)}, (i/10))
+					end
 				end
 			end
 		end
