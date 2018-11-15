@@ -20,8 +20,9 @@ function doPrestige(data)
 	local chest = getObjectFromGUID("00f401").takeObject({position = data.set.zone.getPosition()}) -- Silver Chest
 	
 	if Player[data.set.color].seated then
-		chest.setName("Player save: " .. Player[data.set.color].steam_name)
-		chest.setDescription(Player[data.set.color].steam_id)
+		local plyData = Player[data.set.color]
+		
+		newGem.setDescription( ("%s - %s\n\n%s"):format(plyData.steam_id, plyData.steam_name, self.getDescription()) )
 	end
 	
 	return true

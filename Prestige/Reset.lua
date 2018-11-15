@@ -58,7 +58,11 @@ function doPrestige(data)
 	resetAward.setPosition(data.set.zone.getPosition())
 	
 	if Player[data.set.color].seated then
-		resetAward.setDescription(Player[data.set.color].steam_id)
+		local plyData = Player[data.set.color]
+		
+		resetAward.setDescription(plyData.steam_id)
+		
+		newGem.setDescription( ("%s - %s\n\n%s"):format(plyData.steam_id, plyData.steam_name, self.getDescription()) )
 	end
 	
 	return true

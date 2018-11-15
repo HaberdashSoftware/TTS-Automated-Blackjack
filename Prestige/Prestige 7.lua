@@ -16,5 +16,11 @@ function doPrestige(data)
 	newGem.setLock(false)
 	newGem.interactable = true
 	
+	if Player[data.set.color].seated then
+		local plyData = Player[data.set.color]
+		
+		newGem.setDescription( ("%s - %s\n\n%s"):format(plyData.steam_id, plyData.steam_name, self.getDescription()) )
+	end
+	
 	return true
 end
