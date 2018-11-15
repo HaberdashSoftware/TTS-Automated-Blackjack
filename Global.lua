@@ -402,9 +402,14 @@ function onObjectPickUp(col, obj)
 	if col~="Black" and obj.getPosition()[3] >= -16 then
 		local desc = obj.getDescription()
 		if desc=="" and obj.tag=="Chip" then --obj.getDescription():find("^%$([%d,])+ ?%s*$")
-			obj.setDescription( Player[col].steam_id .." - ".. Player[col].steam_name )
+			obj.setDescription( ("%s - %s"):format(Player[col].steam_id, Player[col].steam_name) )
 		elseif desc:find(Player[col].steam_id, 0, true) then
-			obj.setDescription( Player[col].steam_id .." - ".. Player[col].steam_name )
+			local id, oldDesc = desc:match("^(%d+) %- [^\n]*\n\n(.*)")
+			if oldDesc then
+				obj.setDescription( ("%s - %s\n\n%s"):format(Player[col].steam_id, Player[col].steam_name, oldDesc) )
+			else
+				obj.setDescription( ("%s - %s"):format(Player[col].steam_id, Player[col].steam_name) )
+			end
 		elseif (not Player[col].admin) and desc:find("^(%d+) %- .*") then
 		-- elseif desc:find("^(%d+) %- .*") then
 			obj.reload()
