@@ -1969,6 +1969,9 @@ end
 
 --Used to clear all cards and figurines out of a zone
 function clearCards(zoneToClear)
+	local override = RunBonusFunc( "clearCards", {zone=zoneToClear} )
+	if override==true then return end
+	
 	local objectsInZone = zoneToClear.getObjects()
 	for i, object in ipairs(objectsInZone) do
 		local tag = object.tag
@@ -1979,6 +1982,9 @@ function clearCards(zoneToClear)
 end
 
 function clearCardsOnly(zoneToClear)
+	local override = RunBonusFunc( "clearCardsOnly", {zone=zoneToClear} )
+	if override==true then return end
+	
 	local objectsInZone = zoneToClear.getObjects()
 	for i, object in ipairs(objectsInZone) do
 		local tag = object.tag
@@ -1990,6 +1996,9 @@ end
 
 --Used to clear all chips out of a zone
 function clearBets(zoneToClear, lockedOnly)
+	local override = RunBonusFunc( "clearBets", {zone=zoneToClear, lockedOnly=lockedOnly} )
+	if override==true then return end
+	
 	local objectsInZone = zoneToClear.getObjects()
 	
 	local badBagObjects = 0
@@ -2037,6 +2046,9 @@ end
 
 --Deals cards to the player. whichCard is a table with which # cards to deal
 function dealDealer(whichCard)
+	local override = RunBonusFunc( "dealDealer", {whichCard=whichCard} )
+	if override==true then return end
+	
 	for i, v in ipairs(whichCard) do
 		local pos = findCardPlacement(objectSets[1].zone, v)
 		if v ~= 2 or (bonusShouldDealerReveal()) then
@@ -2049,6 +2061,9 @@ end
 
 --Deals to player using same method as dealDealer
 function dealPlayer(color, whichCard)
+	local override = RunBonusFunc( "deakPlayer", {color=color, whichCard=whichCard} )
+	if override==true then return end
+	
 	for i, v in ipairs(whichCard) do
 		local set = findObjectSetFromColor(color)
 		if set then
@@ -2060,6 +2075,9 @@ end
 
 --Called by other functions to actually take the card needed
 function btnFlipCard(card, col)
+	local canFlip = RunBonusFunc( "onCardFlip", {card=card, col=col} )
+	if canFlip==false then return end
+	
 	local set = card.getTable("blackjack_playerSet")
 	if set and col~=set.color and col~=set.UserColor and not Player[col].admin then
 		broadcastToColor( "This does not belong to you!", col, {1,0.2,0.2} )
@@ -2225,6 +2243,9 @@ end
 
 --Used to find card dealing positions, based on zone and which position the card should be in
 function findCardPlacement(zone, spot)
+	local override = RunBonusFunc( "findCardPlacement", {zone=zone, spot=spot} )
+	if type(override)=="table" then return override end
+	
 	spot = math.min(spot, 6)
 	if zone == objectSets[1].zone then
 		return {6.5 - 2.6 * (spot-1), 1.8, -4.84}
@@ -2239,6 +2260,9 @@ function findCardPlacement(zone, spot)
 	end
 end
 function findPowerupPlacement(zone, spot)
+	local override = RunBonusFunc( "findPowerupPlacement", {zone=zone, spot=spot} )
+	if type(override)=="table" then return override end
+	
 	if zone == objectSets[1].zone then -- Dealer
 		return {-8, 1.8, -8 + (1.5 * math.min(spot,3))}
 	else
@@ -2311,6 +2335,9 @@ function hitCard(handler, color)
 	local zone = set.zone
 	
 	if zone and (color == "Black" or Player[color].promoted or Player[color].host) then
+		local override = RunBonusFunc( "onHit", {zone=zone} )
+		if override==true then return end
+		
 		local cardsInZone = #findCardsInZone(zone)
 		local decksInZone = #findDecksInZone(zone)
 		local pos = findCardPlacement(zone, cardsInZone + decksInZone + 1)
@@ -3064,6 +3091,9 @@ function playerHit(btnHandler, color)
 			return broadcastToColor("Error: It's not your turn.", color, {1,0.25,0.25})
 		end
 		if not lockout then
+			local override = RunBonusFunc( "onPlayerHit", {set=set, color=color} )
+			if override==true then return end
+			
 			endTurnTimer(set)
 			clearPlayerActions(set.zone, true)
 			lockoutTimer(1)
@@ -3094,8 +3124,14 @@ function playerDouble(btnHandler, color)
 		if #cards~=2 then clearPlayerActions(set.zone, true) return end
 		
 		if not lockout then
+			local override = RunBonusFunc( "prePlayerDouble", {set=set, color=color} )
+			if override==true then return end
+			
 			endTurnTimer(set)
 			if not repeatBet(color,set,splitSet) then return end
+			
+			local override = RunBonusFunc( "onPlayerDouble", {set=set, color=color} )
+			if override==true then return end
 			
 			lockoutTimer(1.5)
 			forcedCardDraw(set.zone)
@@ -3144,6 +3180,8 @@ function playerStand(btnHandler, color)
 			lockoutTimer(0.5)
 			
 			delayedCallback('delayedPassPlayerActions', {zone=set.zone, color=set.color}, 0.25)
+			
+			RunBonusFunc( "onPlayerHit", {set=set, color=color} )
 		else
 			broadcastToColor("Error: Button delay is active.\nWait a moment then try again.", color, {1,0.25,0.25})
 		end
@@ -3167,7 +3205,13 @@ function playerSplit(btnHandler, color)
 			endTurnTimer(set)
 			for _,splitSet in ipairs(reverseTable(objectSets)) do
 				if splitSet.color:sub(1,5)=="Split" and not splitSet.SplitUser then
+					local override = RunBonusFunc( "prePlayerSplit", {set=set, color=color} )
+					if override==true then return end
+					
 					if not repeatBet(color,set,splitSet) then return end -- Could not get chips for split
+					
+					local override = RunBonusFunc( "onPlayerSplit", {set=set, color=color} )
+					if override==true then return end
 					
 					lockoutTimer(2)
 					
@@ -3339,8 +3383,7 @@ function calculatePayout(zone)
 	end
 	
 	local globalMultiplier = math.max(hostSettings.iMultiplyPayouts and hostSettings.iMultiplyPayouts.getValue() or 1, 1)
-	betMultiplier = bonusGetPayoutMultiplier( set, betMultiplier ) or betMultiplier
-	
+	betMultiplier = (bonusGetPayoutMultiplier( set, betMultiplier ) or betMultiplier) * globalMultiplier
 	
 	return betMultiplier
 end
