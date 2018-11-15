@@ -554,12 +554,12 @@ function doChipDestruction( set, destroyChips, destroyPowerups, destroyPrestige 
 					obj.Call("onBlackjackDestroyItems", {destroyChips=destroyChips, destroyPowerups=destroyPowerups, destroyPrestige=destroyPrestige} )
 				elseif destroyChips and obj.tag == "Chip" then
 					if destroyPowerups or (not powerupEffectTable[obj.getName()]) then
-						obj.destruct()
+						destroyObject(obj)
 					end
 				elseif destroyPowerups and powerupEffectTable[obj.getName()] then
-					obj.destruct()
+					destroyObject(obj)
 				elseif destroyPrestige and ((string.match(obj.getName(), "New player") or string.match(obj.getName(), "Prestige %d+")) and not string.find(obj.getName(), "Trophy")) then
-					obj.destruct()
+					destroyObject(obj)
 				elseif obj.tag=="Bag" then
 					local params = {}
 					params.position = obj.getPosition()
@@ -574,6 +574,24 @@ function doChipDestruction( set, destroyChips, destroyPowerups, destroyPrestige 
 						taken.lock()
 						params.position.y = params.position.y + 2
 					end
+				end
+			end
+		end
+		
+		local plyID = Player[set.color].seated and Player[set.color].steam_id
+		for _,obj in pairs(getAllObjects()) do -- Simpler destruction here, only check first layer
+			local objID = obj.getDescription():match("^(%d+) %- .*")
+			if objID and objID==plyID then
+				if obj.getVar("onBlackjackDestroyItems") then
+					obj.Call("onBlackjackDestroyItems", {destroyChips=destroyChips, destroyPowerups=destroyPowerups, destroyPrestige=destroyPrestige} )
+				elseif destroyChips and obj.tag=="Chip" then
+					if destroyPowerups or (not powerupEffectTable[obj.getName()]) then
+						destroyObject(obj)
+					end
+				elseif destroyPowerups and powerupEffectTable[obj.getName()] then
+					destroyObject(obj)
+				elseif destroyPrestige and ((string.match(obj.getName(), "New player") or string.match(obj.getName(), "Prestige %d+")) and not string.find(obj.getName(), "Trophy")) then
+					destroyObject(obj)
 				end
 			end
 		end
@@ -2437,22 +2455,27 @@ function playerPrestige(handler, color)
 		local tableObjects = set.tbl.getObjects()
 		local prestigeObjects = set.prestige.getObjects()
 		
+		local plyID = Player[set.color].steam_id
+		
 		for _,zone in pairs({zoneObjects, tableObjects, prestigeObjects}) do
 			for _, obj in ipairs(zone) do
-				if obj.tag=="Chip" and chipListIndex[obj.getName()] then
-					table.insert(chips, obj.getName())
-				else
-					local level = obj.getVar("PrestigeLevel") or tonumber((not string.find(obj.getName(), "Trophy")) and string.match(obj.getName(), "Prestige (%d+)") or "")
-					if level then
-						if (not prestigeObject) or level>prestigeLevel then
+				local objID = obj.getDescription():match("^(%d+) %- .*") 
+				if (not objID) or objID==plyID then
+					if obj.tag=="Chip" and chipListIndex[obj.getName()] then
+						table.insert(chips, obj.getName())
+					else
+						local level = obj.getVar("PrestigeLevel") or tonumber((not string.find(obj.getName(), "Trophy")) and string.match(obj.getName(), "Prestige (%d+)") or "")
+						if level then
+							if (not prestigeObject) or level>prestigeLevel then
+								prestigeObject = obj
+								prestigeLevel = level
+							end
 							prestigeObject = obj
-							prestigeLevel = level
-						end
-						prestigeObject = obj
-					elseif string.match(obj.getName(), "New player") then
-						if not prestigeObject then
-							prestigeObject = obj
-							prestigeLevel = 0
+						elseif string.match(obj.getName(), "New player") then
+							if not prestigeObject then
+								prestigeObject = obj
+								prestigeLevel = 0
+							end
 						end
 					end
 				end
