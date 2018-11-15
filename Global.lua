@@ -2084,7 +2084,7 @@ end
 
 --Deals to player using same method as dealDealer
 function dealPlayer(color, whichCard)
-	local override = RunBonusFunc( "deakPlayer", {color=color, whichCard=whichCard} )
+	local override = RunBonusFunc( "dealPlayer", {color=color, whichCard=whichCard} )
 	if override==true then return end
 	
 	for i, v in ipairs(whichCard) do
