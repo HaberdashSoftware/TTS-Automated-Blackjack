@@ -1441,9 +1441,23 @@ function findCardsToCount()
 			if #cardList ~= 0 or #deckList ~= 0 or #figurineList ~= 0 then
 				obtainCardNames(hand, cardList, deckList, figurineList)
 			else
-				objectSets[hand].btnHandler.editButton({index=0, label="0", color=displayCol.Clear})
 				set.value = 0
 				set.count = 0
+				local override = false
+				if minigame and not (minigame==nil) and minigame.getVar("blackjackDisplayResult") then -- Override
+					local str, col = minigame.Call("blackjackDisplayResult", {set=objectSets[hand], value=value, soft=soft})
+					if str then
+						objectSets[hand].btnHandler.editButton({
+							index=0, label=str, color = (col and {r=col.r,g=col.g,b=col.b} or displayCol.Clear) -- Can't use the colour directly, causes errors
+						})
+						
+						override = true
+					end
+				end
+				
+				if not override then
+					objectSets[hand].btnHandler.editButton({index=0, label="0", color=displayCol.Clear})
+				end
 			end
 		end
 	end
@@ -1580,7 +1594,7 @@ function displayResult(hand, value, soft)
 		local str, col = minigame.Call("blackjackDisplayResult", {set=objectSets[hand], value=value, soft=soft})
 		if str then
 			objectSets[hand].btnHandler.editButton({
-				index=0, label=str, color = (col or displayCol.Clear)
+				index=0, label=str, color = (col and {r=col.r,g=col.g,b=col.b} or displayCol.Clear)
 			})
 			return
 		end
