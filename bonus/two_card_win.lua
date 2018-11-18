@@ -39,7 +39,7 @@ function payoutMultiplier( data )
 		local cards = Global.call( "forwardFunction", {function_name="findCardsInZone", data={set.zone}} )
 		
 		if set.count<=2 and #cards==set.count then
-			return 3
+			return (data.betMultiplier or 1) * 3
 		end
 	end
 end
