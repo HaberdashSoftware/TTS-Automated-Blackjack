@@ -179,7 +179,7 @@ local dragonDebuffs = {
 					if (object.tag == "Figurine" and object.getLock()) and object.getName()=="Loot" then
 						destroyObject( object )
 						
-						printToAll( "You dropped your loot!", {0.7, 0.2, 0.2} )
+						printToColor( "You dropped your loot!", set.color, {0.7, 0.2, 0.2} )
 						
 						break
 					end
@@ -354,7 +354,7 @@ function selectCharacters()
 				local sortPos = i-1
 				set.btnHandler.createButton({
 					label=sortedClasses[i], click_function="chooseClass"..sortedClasses[i], function_owner=self, scale = {1.2,1.2,1.2},
-					position={ -0.8 + ((sortPos)%2)*1.6, 0.25, 1 + math.floor(sortPos/2)*0.8}, rotation={0,0,0}, width=550, height=350, font_size=130
+					position={ -0.7 + ((sortPos)%2)*1.5, 0.25, 1 + math.floor(sortPos/2)*0.85}, rotation={0,0,0}, width=550, height=350, font_size=130
 				})
 			end
 			
@@ -750,15 +750,24 @@ function addEffect( col, zone, name, effect, addPos )
 	createEffectObject( pos, effect.icon, effect.name or name or "<effect>", desc, effColor )
 end
 function addLoot( zone, addPos )
-	local zoneObjectList = zone.getObjects()
-	local foundEffects = {}
-	for i, object in ipairs(zoneObjectList) do
-		if (object.tag == "Figurine" and object.getLock()) and object.getName()=="Loot" then
-			table.insert(foundEffects, object)
+	local count = 0
+	
+	local set = Global.call( "forwardFunction", {function_name="findObjectSetFromZone", data={zone}} )
+	if set then
+		count = cleanupLoot(set)
+	else
+		local zoneObjectList = zone.getObjects()
+		local foundEffects = {}
+		for i, object in ipairs(zoneObjectList) do
+			if (object.tag == "Figurine" and object.getLock()) and object.getName()=="Loot" then
+				table.insert(foundEffects, object)
+			end
 		end
+		
+		count = #foundEffects
 	end
 	
-	local pos = Global.call( "forwardFunction", {function_name="findPowerupPlacement", data={zone, #foundEffects + 1 + (addPos or 0)}} )
+	local pos = Global.call( "forwardFunction", {function_name="findPowerupPlacement", data={zone, count + 1 + (addPos or 0)}} )
 	createEffectObject( pos, lootIcon, "Loot", "", {r=1,g=1,b=1} )
 end
 
@@ -1060,6 +1069,27 @@ function cleanupEffects()
 		end
 	end
 end
+function cleanupLoot( set )
+	local zoneObjectList = set.zone.getObjects()
+	local remainingObjects = {}
+	for i, object in ipairs(zoneObjectList) do
+		if (object.tag == "Figurine" and object.getLock()) and object.getName()=="Loot" then
+			if object==nil then
+			else
+				table.insert( remainingObjects, object )
+			end
+		end
+	end
+	
+	for i=1,#remainingObjects do
+		local newPos = Global.call( "forwardFunction", {function_name="findPowerupPlacement", data={set.zone, i}} )
+		
+		remainingObjects[i].setPosition( newPos )
+		remainingObjects[i].setRotation({0,0,0})
+	end
+	
+	return #remainingObjects
+end
 
 function playerDeath( col )
 	printToAll( ("%s has been defeated!"):format(col), {0.25,1,0.25})
@@ -1079,6 +1109,8 @@ function playerEscape( col )
 	
 	playingUsers[col] = nil
 	clearButtons(col)
+	
+	destroyEffects(col)
 	
 	for k in pairs(playingUsers) do
 		return -- At least one other player
@@ -1109,16 +1141,21 @@ function beginPayout()
 	startLuaCoroutine( self, "processLoot" )
 end
 
-function processLoot()
+function destroyEffects( col )
 	-- Destroy non-loot objects
 	for i, set in pairs(Global.getTable("objectSets")) do
-		local zoneObjectList = set.zone.getObjects()
-		for i, object in ipairs(zoneObjectList) do
-			if (object.tag == "Figurine" and object.getLock()) and object.getName()~="Loot" then
-				destroyObject( object )
+		if (not col) or set.color==col then
+			local zoneObjectList = set.zone.getObjects()
+			for i, object in ipairs(zoneObjectList) do
+				if (object.tag == "Figurine" and object.getLock()) and object.getName()~="Loot" then
+					destroyObject( object )
+				end
 			end
 		end
 	end
+end
+function processLoot()
+	destroyEffects()
 	
 	local foundLoot = false
 	local toProcess = false
