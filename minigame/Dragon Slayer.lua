@@ -381,6 +381,7 @@ function setupBet( col )
 	return validBet
 end
 function chooseClass( col, class )
+	if hasStarted then return end
 	if not classData[class] then return end
 	
 	if not setupBet( col ) then
@@ -520,6 +521,8 @@ local function validPlayer( col )
 	return true
 end
 function takeAction( col, actionID )
+	if not hasStarted then return end
+	
 	if not (col and actionID) then return end
 	if not validPlayer(col) then return clearButtons(col) end
 	
@@ -577,6 +580,8 @@ for i=1,10 do
 end
 
 function actionRun( o,col )
+	if not hasStarted then return end
+	
 	local setCol = getButtonHandlerColor(o)
 	if (not setCol) or (setCol~=col and not Player[col].admin) then return end
 	
@@ -594,6 +599,8 @@ function actionRun( o,col )
 end
 
 function actionLoot( o,col )
+	if not hasStarted then return end
+	
 	local setCol = getButtonHandlerColor(o)
 	if (not setCol) or (setCol~=col and not Player[col].admin) then return end
 	
@@ -620,6 +627,12 @@ end
 
 function setupTargetButtons( handler )
 	local id = 0
+	
+	handler.createButton({
+		label="Select Target", click_function="doNull", function_owner=self, scale = {1,1,1},
+		position={0, 0.25, 0.9}, rotation={0,0,0}, width=950, height=325, font_size=130,
+		color={0.8,0.8,0.8},
+	})
 	
 	local sets = Global.getTable("objectSets")
 	for i=2,#sets do
@@ -729,7 +742,7 @@ function addLoot( zone, addPos )
 		end
 	end
 	
-	local pos = Global.call( "forwardFunction", {function_name="findPowerupPlacement", data={zone, #foundEffects + 1 + addPos}} )
+	local pos = Global.call( "forwardFunction", {function_name="findPowerupPlacement", data={zone, #foundEffects + 1 + (addPos or 0)}} )
 	createEffectObject( pos, lootIcon, "Loot", "", {r=1,g=1,b=1} )
 end
 
@@ -770,6 +783,9 @@ end
 
 function endTurn()
 	inTurn = false
+	
+	clearButtons()
+	waitingFor = {}
 	
 	local count = 0
 	for col in pairs(playingUsers) do count = count + 1 end
