@@ -11,56 +11,71 @@ local classData = {
 	["Fighter"] = {
 		hp = 10,
 		actions = {
-			{name="Attack", effects={
-				{ dmg = 2, icon = "https://i.imgur.com/ZyO8EgA.png?1" },
+			{name="Attack", tooltip="Deal 3 damage to the dragon.", effects={
+				{ dmg = 3, icon = "https://i.imgur.com/ZyO8EgA.png?1" },
 			}},
-			{name="Reckless Stance", effects= {
-				{ dmg = 2, vulnerability = 2, turns = 3, icon = "https://i.imgur.com/Zf9UXJu.png" },
+			{name="Reckless Stance", tooltip="For the next 4 turns, deal 2 additional damage to the dragon.\nIncreases all damage taken by 3.", effects= {
+				{ dmg = 2, vulnerability = 3, turns = 4, icon = "https://i.imgur.com/Zf9UXJu.png" },
 			}},
-			{name="Defend", effects={
-				{ def = 1, icon = "https://i.imgur.com/gXgvNPo.png?1" },
+			{name="Defend",  tooltip="Reduce damage taken by 2 this turn.", effects={
+				{ def = 2, icon = "https://i.imgur.com/gXgvNPo.png?1" },
 			}},
 		}
 	},
 	["Paladin"] = {
 		hp = 8,
 		actions = {
-			{name="Attack", effects={
+			{name="Attack", tooltip="Deal 2 damage to the dragon.", effects={
 				{ dmg = 2, icon = "https://i.imgur.com/ZyO8EgA.png?1" },
 			}},
-			{name="Heal Self", effects={
-				{ heal = 1, icon = "https://i.imgur.com/QHc977e.png" },
+			{name="Heal Self", tooltip="Restore 2 hit points", effects={
+				{ heal = 2, icon = "https://i.imgur.com/QHc977e.png" },
 			}},
-			{name="Protect", target = TARGET_ALLY, effects={
-				{ def = 2, turns = 2, icon = "https://i.imgur.com/gXgvNPo.png?1" },
+			{name="Protect", target = TARGET_ALLY, tooltip="Reduce the damage an ally takes by 2 for 3 turns.", effects={
+				{ def = 2, turns = 3, icon = "https://i.imgur.com/gXgvNPo.png?1" },
 			}},
 		}
 	},
 	["Wizard"] = {
 		hp = 4,
 		actions = {
-			{name="Fireball", effects={
-				{ dmg = 4, icon = "https://i.imgur.com/ud2siei.png?1" },
+			{name="Fireball",  tooltip="Deal 5 damage to the dragon.", effects={
+				{ dmg = 5, icon = "https://i.imgur.com/ud2siei.png?1" },
 			}},
-			{name="Lightning Storm", effects={
-				{ dmg = 2, icon = "https://i.imgur.com/dY1FlB6.png?1", turns = 3 },
+			{name="Lightning Storm", tooltip="At the end of the next 3 turns, deal 3 damage to the dragon.", effects={
+				{ dmg = 3, icon = "https://i.imgur.com/dY1FlB6.png?1", turns = 3 },
 			}},
-			{name="Ice Shield", effects={
-				{ def = 2, turns = 2, icon = "https://i.imgur.com/buC4jSk.png" },
+			{name="Ice Shield",  tooltip="Reduce damage taken by 3 for 3 turns.",effects={
+				{ def = 3, turns = 3, icon = "https://i.imgur.com/buC4jSk.png" },
 			}},
 		}
 	},
 	["Cleric"] = {
 		hp = 6,
 		actions = {
-			{name="Smite", effects={
-				{ dmg = 1, heal = 1, icon = "https://i.imgur.com/l7XzInu.png?1" },
+			{name="Smite",  tooltip="Deal 1 damage to the dragon and heal yourself for 2 hit points.", effects={
+				{ dmg = 1, heal = 2, icon = "https://i.imgur.com/l7XzInu.png?1" },
 			}},
-			{name="Heal Target", target = TARGET_ALLY, effects={
-				{ heal = 3, icon = "https://i.imgur.com/QHc977e.png" },
+			{name="Heal Target", target = TARGET_ALLY, tooltip="Heal an ally for 4 hit points.", effects={
+				{ heal = 4, icon = "https://i.imgur.com/QHc977e.png" },
 			}},
-			{name="Heal All", target = TARGET_ALL, effects={
+			{name="Heal All", target = TARGET_ALL, tooltip="Heal everyone for 1 hit point.", effects={
 				{ heal = 1, icon = "https://i.imgur.com/QHc977e.png" },
+			}},
+		}
+	},
+	["Thief"] = {
+		hp = 8,
+		actions = {
+			{name="Sneak Attack",  tooltip="Deal 3 damage to the dragon.", effects={
+				{ dmg = 3, icon = "https://i.imgur.com/CWqZM87.png" },
+			}},
+			{name="Pillage", tooltip = "Gain two Loot. Increase damage taken by 4 this round.", effects={
+				{ attemptLoot = true, vulnerability = 2, icon = "https://i.imgur.com/hplVGRR.png"},
+				{ attemptLoot = true, vulnerability = 2, icon = "https://i.imgur.com/hplVGRR.png"},
+			}},
+			{name="Vanish", tooltip="Reduce damage taken by 3 for 2 turns.", effects={
+				{ def = 3, turns = 2, icon = "https://i.imgur.com/x1ueuqk.png" },
 			}},
 		}
 	},
@@ -150,7 +165,7 @@ local dragonDebuffs = {
 		local healAmount = math.random( 1, math.ceil(count*1.5) )
 		printToAll( ("The dragon regains %i health points!"):format(healAmount), {0.7, 0.2, 0.2} )
 		
-		DragonHealth = math.min(DragonHealth + healAmount, count*10)
+		DragonHealth = math.min(DragonHealth + healAmount, count*11)
 	end,
 	function()
 		broadcastToAll( "The dragon stomps around in anger", {0.7, 0.2, 0.2} )
@@ -336,9 +351,10 @@ function selectCharacters()
 			})
 			
 			for i=1,#sortedClasses do
+				local sortPos = i-1
 				set.btnHandler.createButton({
 					label=sortedClasses[i], click_function="chooseClass"..sortedClasses[i], function_owner=self, scale = {1.2,1.2,1.2},
-					position={0, 0.25, 0.2 + i*0.8}, rotation={0,0,0}, width=550, height=350, font_size=130
+					position={ -0.8 + ((sortPos)%2)*1.6, 0.25, 1 + math.floor(sortPos/2)*0.8}, rotation={0,0,0}, width=550, height=350, font_size=130
 				})
 			end
 			
@@ -488,7 +504,7 @@ function startTurn()
 				for i=1,#actions do
 					set.btnHandler.createButton({
 						label=actions[i].name or "<Action>", click_function="takeAction"..i, function_owner=self, scale = {1.2,1.2,1.2},
-						position={0, 0.25, 0.25 + i*0.9}, rotation={0,0,0}, width=950, height=325, font_size=130
+						position={0, 0.25, 0.25 + i*0.9}, rotation={0,0,0}, width=950, height=325, font_size=130, tooltip = actions[i].tooltip
 					})
 				end
 				
@@ -543,7 +559,7 @@ function takeAction( col, actionID )
 		if dragonSet then
 			for i=1,#action.effects do
 				local eff = action.effects[i]
-				addEffect( col, dragonSet.zone, eff.name or action.name, eff )
+				addEffect( col, dragonSet.zone, eff.name or action.name, eff, i-1 )
 			end
 		end
 	elseif action.target==TARGET_ALL then
@@ -552,7 +568,7 @@ function takeAction( col, actionID )
 				
 				for i=1,#action.effects do
 					local eff = action.effects[i]
-					addEffect( col, objectSet.zone, eff.name or action.name, eff )
+					addEffect( col, objectSet.zone, eff.name or action.name, eff, i-1 )
 				end
 			end
 		end
@@ -564,7 +580,7 @@ function takeAction( col, actionID )
 	else --if (not action.target) or action.target==TARGET_SELF then
 		for i=1,#action.effects do
 			local eff = action.effects[i]
-			addEffect( col, set.zone, eff.name or action.name, eff )
+			addEffect( col, set.zone, eff.name or action.name, eff, i-1 )
 		end
 	end
 	
@@ -669,7 +685,7 @@ function targetColor( user, target )
 	if targetSet then
 		for i=1,#action.effects do
 			local eff = action.effects[i]
-			addEffect( user, targetSet.zone, eff.name or action.name, eff )
+			addEffect( user, targetSet.zone, eff.name or action.name, eff, i-1 )
 		end
 	end
 	
@@ -700,7 +716,7 @@ local effToString = {
 	attemptRun = "You are fleeing\n",
 	preventRun = "You cannot flee\n",
 }
-function addEffect( col, zone, name, effect )
+function addEffect( col, zone, name, effect, addPos )
 	if not (zone and effect) then return end
 	if not col then col="Dragon" end
 	
@@ -727,7 +743,7 @@ function addEffect( col, zone, name, effect )
 		end
 	end
 	
-	local pos = Global.call( "forwardFunction", {function_name="findPowerupPlacement", data={zone, #foundEffects+1}} )
+	local pos = Global.call( "forwardFunction", {function_name="findPowerupPlacement", data={zone, #foundEffects + 1 + (addPos or 0)}} )
 	pos[1] = pos[1] + 4.5
 	
 	local effColor = col=="Dragon" and {r=0.5,g=0.5,b=0.5} or stringColorToRGB(col)
@@ -877,13 +893,13 @@ function doDragonTurn()
 		return 1
 	end
 	
-	waitTime( 1 )
-	doDragonDebuffs()
 	waitTime( 2 )
+	doDragonDebuffs()
+	waitTime( 3 )
 	
 	doDragonAttacks()
 	if coroutineQuit then return 1 end
-	waitTime( 2 )
+	waitTime( 3 )
 	
 	for i, set in pairs(Global.getTable("objectSets")) do
 		if coroutineQuit then break end
@@ -940,7 +956,7 @@ function postRoundEffects( col, zone )
 	local canFlee = true
 	local isFleeing = false
 	
-	local isLooting = false
+	local isLooting = 0
 	
 	local zoneObjectList = zone.getObjects()
 	for i, object in ipairs(zoneObjectList) do
@@ -951,7 +967,7 @@ function postRoundEffects( col, zone )
 			burn = burn + add
 			
 			if desc:match("You are looting") then
-				isLooting = true
+				isLooting = isLooting + 1
 			end
 			if desc:match("You cannot flee") then
 				canFlee = false
@@ -991,8 +1007,10 @@ function postRoundEffects( col, zone )
 			printToColor( "You failed to get away this round!", col, {0.7, 0.2, 0.2} )
 		end
 	end
-	if isLooting then
-		addLoot( zone )
+	if isLooting and isLooting>0 then
+		for i=1,isLooting do
+			addLoot( zone, i-1 )
+		end
 		printToColor( "You successfully looted this round.", col, {0.2, 0.7, 0.2} )
 	end
 end
@@ -1103,8 +1121,9 @@ function processLoot()
 	end
 	
 	local foundLoot = false
+	local toProcess = false
 	repeat -- Process loot objects
-		waitTime( 0.1 )
+		waitTime( 0.5 )
 		
 		foundLoot = false
 		for i, set in pairs(Global.getTable("objectSets")) do
@@ -1116,13 +1135,14 @@ function processLoot()
 					addRandomLoot( set.zone )
 					
 					foundLoot = true
+					toProcess = true
 					break
 				end
 			end
 		end
 	until not foundLoot
 	
-	waitTime( 0.5 )
+	waitTime( toProcess and 4 or 1 )
 	
 	-- Timer.destroy('DragonLairMinigame-ProcessLoot')
 	-- Timer.create({identifier='DragonLairMinigame-ProcessLoot', function_name='findCardsToCount', delay=0.8})
