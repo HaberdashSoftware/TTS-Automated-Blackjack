@@ -314,6 +314,12 @@ end
 function giveReward( id, zone )
 	if not rewards[id] then return end
 	
+	local set = findObjectSetFromZone(zone)
+	if set.UserColor then
+		set = findObjectSetFromColor(set.UserColor) or set
+		zone = set.zone
+	end
+	
 	local targetPosition = zone.getPosition()
 	
 	local params = {}
@@ -321,8 +327,6 @@ function giveReward( id, zone )
 	params.position.y = params.position.y + 0.25
 	params.callback = "giveRewardCallback"
 	params.callback_owner = Global
-	
-	local set = findObjectSetFromZone(zone)
 	params.params = {set=set}
 	
 	for _,item in pairs( rewards[id].getObjects()) do
@@ -2793,8 +2797,8 @@ function beginTurnTimer(set, supressMessage)
 		
 		setRoundState( 2, turnTime )
 		
-		if Player[set.SplitUser and set.SplitUser.color or set.color].seated and not supressMessage then
-			broadcastToColor( ("It's your turn. You have %i seconds to take an action or you will be forced to stand."):format(turnTime), set.SplitUser and set.SplitUser.color or set.color, {0.25,1,0.25})
+		if Player[set.UserColor or set.color].seated and not supressMessage then
+			broadcastToColor( ("It's your turn. You have %i seconds to take an action or you will be forced to stand."):format(turnTime), set.UserColor or set.color, {0.25,1,0.25})
 		end
 	end
 end
@@ -3454,7 +3458,7 @@ function processPayout(zone, iterations, lockedOnly)
 	local zoneObjects = zone.getObjects()
 	local badBagObjects = 0
 	
-	local plyID = Player[set.SplitUser and set.SplitUser.color or set.color].seated and Player[set.SplitUser and set.SplitUser.color or set.color].steam_id
+	local plyID = Player[set.UserColor or set.color].seated and Player[set.UserColor or set.color].steam_id
 	
 	for j, bet in ipairs(zoneObjects) do
 		local wasLocked = {}
