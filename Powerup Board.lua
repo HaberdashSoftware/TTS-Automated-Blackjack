@@ -196,6 +196,7 @@ function deployPowerup(name)
 		local params = {}
 		params.position = getDeployPosition()
 		local clone = chosenObject.clone(params)
+		clone.interactable = true
 		clone.unlock()
 		clone.setPosition(params.position)
 		clone.setRotation(self.getRotation())

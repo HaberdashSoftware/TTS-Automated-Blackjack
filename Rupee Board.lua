@@ -111,7 +111,7 @@ function makeButtons()
 			self.createButton({
 				label="", click_function="doDeploy_"..tostring(powerupsTable[row][column]), function_owner=self,
 				position={startPos+ (column-1)*2,0.1,rowPos}, rotation={0,0,0}, width=960, height=1400, font_size=150,
-				color = count==0 and {r=0,g=0,b=0, a=0.85} or {r=0.5,g=0.75,b=0.5, a=0.3}, tooltip=tostring(powerupsTable[row][column])
+				color = count==0 and {r=0,g=0,b=0, a=0.85} or {r=0.5,g=0.75,b=0.5, a=0}, tooltip=tostring(powerupsTable[row][column])
 			})
 			
 			-- Drop-shadow counter text. There's no way to draw text directly, this will hit performance.
