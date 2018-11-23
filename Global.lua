@@ -234,6 +234,17 @@ function onload()
 		getObjectFromGUID("9fd676"), -- Red
 		getObjectFromGUID("5b2fc0"), -- Brown
 		getObjectFromGUID("0a3126"), -- White
+		
+		-- Rupee trophies
+		getObjectFromGUID("1feed0"), -- Green
+		getObjectFromGUID("533f81"), -- Blue
+		getObjectFromGUID("b8bf89"), -- Yellow
+		getObjectFromGUID("038e19"), -- Red
+		getObjectFromGUID("02eb77"), -- Purple
+		getObjectFromGUID("5e2f09"), -- Orange
+		getObjectFromGUID("df5ce7"), -- Silver
+		getObjectFromGUID("dc1fe2"), -- Rupoor
+		getObjectFromGUID("0b6e51"), -- Gold
 	}
 	
 	-- Chips list
