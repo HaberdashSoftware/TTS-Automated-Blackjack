@@ -1818,9 +1818,9 @@ function clearBonus()
 	if #bonusObjects == 0 then
 		local objectList = bonusZone.getObjects()
 		for i, object in ipairs(objectList) do
-			if object.tag == "Coin" then
+			if object.tag == "Figurine" and object.getLock() then
 				object.destruct()
-				break
+				-- break
 			end
 		end
 	else
