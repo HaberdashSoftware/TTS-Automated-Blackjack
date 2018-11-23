@@ -768,10 +768,11 @@ function addLoot( zone, addPos )
 	end
 	
 	local pos = Global.call( "forwardFunction", {function_name="findPowerupPlacement", data={zone, count + 1 + (addPos or 0)}} )
-	createEffectObject( pos, lootIcon, "Loot", "", {r=1,g=1,b=1} )
+	-- pos[1] = pos[1] + 0.2
+	createEffectObject( pos, lootIcon, "Loot", "When the game ends, this transforms into a random reward.", {r=1,g=1,b=1} )
 end
 
-function createEffectObject( pos, icon, name, desc, col )
+function createEffectObject( pos, icon, name, desc, col, scale )
 	effectMdl.diffuse = icon or effectIconDefault
 	
 	local obj = spawnObject({type = "Custom_Model", callback="resetObjectPosition", callback_owner=self, params={targetPos=pos}})
@@ -783,7 +784,7 @@ function createEffectObject( pos, icon, name, desc, col )
 	
 	obj.setName(name or "<N/A>")
 	obj.setDescription( desc or "" )
-	obj.setScale({0.75, 0.75, 0.75})
+	obj.setScale(scale or {0.72, 0.72, 0.72})
 	obj.setColorTint(col or {r=0.5,g=0.5,b=0.5})
 end
 
@@ -947,11 +948,13 @@ function doDragonDeath()
 	
 	for i, set in pairs(Global.getTable("objectSets")) do
 		if seated[set.color] and playingUsers[set.color] and playingUsers[set.color].CurHP>0 then
-			for i=0,9 do
+			for i=0,15 do
 				addLoot( set.zone, i )
 			end
 		end
 	end
+	
+	waitTime( 2 )
 	
 	beginPayout()
 end
@@ -1160,7 +1163,7 @@ function processLoot()
 	local foundLoot = false
 	local toProcess = false
 	repeat -- Process loot objects
-		waitTime( 0.5 )
+		waitTime( 0.25 )
 		
 		foundLoot = false
 		for i, set in pairs(Global.getTable("objectSets")) do
@@ -1179,7 +1182,7 @@ function processLoot()
 		end
 	until not foundLoot
 	
-	waitTime( toProcess and 4 or 1 )
+	waitTime( toProcess and 5 or 1 )
 	
 	-- Timer.destroy('DragonLairMinigame-ProcessLoot')
 	-- Timer.create({identifier='DragonLairMinigame-ProcessLoot', function_name='findCardsToCount', delay=0.8})
@@ -1208,8 +1211,8 @@ function getNewLootPos( zone )
 	local zpos = pos.z + ( row * 1.5 ) -- Row
 	local xpos = pos.x + ( column * 1.5 ) -- Column
 	
-	local height = math.min( math.floor((slot%27)/9)+1, 3 )
-	local ypos = pos.y-3 + (1.5*height)
+	local height = math.min( math.floor((slot%81)/9)+1, 9 )
+	local ypos = pos.y-4 + (0.5*height)
 	
 	return {xpos, ypos, zpos}
 end
