@@ -11,7 +11,7 @@ local results = {
 		local set = Global.call( "forwardFunction", {function_name="findObjectSetFromColor", data={col}} )
 		Global.call( "forwardFunction", {function_name="clearBets", data={set.zone, true}} )
 		
-		printToAll("Wolf! "..tostring(col).." has lost their bet.", {0.5,1,0.25})
+		printToAll("Wolf! "..tostring(col).." has lost their bet.", {0.75,0.8,0.25})
 	end,
 	[1] = function(col)
 		local set = Global.call( "forwardFunction", {function_name="findObjectSetFromColor", data={col}} )
@@ -61,7 +61,7 @@ function onLoad()
 		activate()
 	else
 		Timer.destroy("HuntMasterMinigame_Activate")
-		Timer.create( {identifier="HighLowMinigame_Activate", function_name="activate", delay = 5} )
+		Timer.create( {identifier="HuntMasterMinigame_Activate", function_name="activate", delay = 5} )
 	end
 end
 
@@ -195,27 +195,27 @@ end
 
 function playerButtons(handler)
 	handler.createButton({
-		label="One Wolf", click_function="setWolf1", function_owner=self, scale = {1,1,1},
-		position={-1, 0.25, 1}, rotation={0,0,0}, width=750, height=350, font_size=130
+		label="[b]Easy[/b]\nOne Wolf", click_function="setWolf1", function_owner=self, scale = {1,1,1},
+		position={-0.9, 0.25, 1}, rotation={0,0,0}, width=750, height=450, font_size=130
 	})
 	handler.createButton({
-		label="Two Wolves", click_function="setWolf2", function_owner=self, scale = {1,1,1},
-		position={1, 0.25, 1}, rotation={0,0,0}, width=750, height=350, font_size=130
+		label="[b]Medium[/b]\nTwo Wolves", click_function="setWolf2", function_owner=self, scale = {1,1,1},
+		position={0.9, 0.25, 1}, rotation={0,0,0}, width=750, height=450, font_size=130
 	})
 	handler.createButton({
-		label="Three Wolves", click_function="setWolf3", function_owner=self, scale = {1,1,1},
-		position={-1, 0.25, 2}, rotation={0,0,0}, width=750, height=350, font_size=130
+		label="[b]Hard[/b]\nThree Wolves", click_function="setWolf3", function_owner=self, scale = {1,1,1},
+		position={-0.9, 0.25, 2}, rotation={0,0,0}, width=750, height=450, font_size=130
 	})
 	handler.createButton({
-		label="Four Wolves", click_function="setWolf4", function_owner=self, scale = {1,1,1},
-		position={1, 0.25, 2}, rotation={0,0,0}, width=750, height=350, font_size=130
+		label="[b]Impossible[/b]\nFour Wolves", click_function="setWolf4", function_owner=self, scale = {1,1,1},
+		position={0.9, 0.25, 2}, rotation={0,0,0}, width=750, height=450, font_size=130
 	})
 end
 
 -- Actions
-function resetObjectPosition(obj, data)
-	if obj and data and data.targetPos then
-		obj.setPosition(data.targetPos)
+function resetObjectPosition(obj, targetPos)
+	if targetPos then
+		obj.setPosition(targetPos)
 	end
 end
 function setWolves(handler, col, numWolves)
@@ -226,10 +226,10 @@ function setWolves(handler, col, numWolves)
 	
 	-- handler.clearButtons()
 	Global.call( "forwardFunction", {function_name="clearPlayerActions", data={Global.call( "forwardFunction", {function_name="findObjectSetFromColor", data={userCol}} ).zone, i}} )
-	handler.createButton({
-		label="In Progress", click_function="doNull", function_owner=self, scale = {1.5,1.5,1.5},
-		position={0, 0.25, 2}, rotation={0,0,0}, width=750, height=350, font_size=130
-	})
+	-- handler.createButton({
+		-- label="In Progress", click_function="doNull", function_owner=self, scale = {1.5,1.5,1.5},
+		-- position={0, 0.25, 2}, rotation={0,0,0}, width=750, height=350, font_size=130
+	-- })
 	
 	cupObjects = {}
 	cleanupFigurnes()
@@ -237,7 +237,7 @@ function setWolves(handler, col, numWolves)
 	local objectSets = Global.getTable("objectSets")
 	for i=1,numWolves+1 do
 		local pos = Global.call( "forwardFunction", {function_name="findCardPlacement", data={objectSets[1].zone, i}} )
-		local cup = spawnObject({type = "Custom_Model", callback="resetObjectPosition", params={targetPos=pos}})
+		local cup = spawnObject({type = "Custom_Model", callback_function=function(o) resetObjectPosition(o,targetPos) end})
 		cup.setCustomObject(objects["Cup"])
 		
 		cup.setPosition(pos)
@@ -245,8 +245,12 @@ function setWolves(handler, col, numWolves)
 		cup.setLock(true)
 		
 		cup.createButton({
-			label="Select", click_function="guess"..tostring(i), function_owner=self, scale = {1.5,1.5,1.5},
-			position={0, -2.25, 0}, rotation={0,0,180}, width=400, height=350, font_size=130
+			label=("[b]Select[/b]\nCup %i"):format(i), click_function="guess"..tostring(i), function_owner=self, scale = {1.5,1.5,1.5},
+			position={0, -2.25, 0}, rotation={0,0,180}, width=400, height=350, font_size=100
+		})
+		handler.createButton({
+			label="Cup "..i, click_function="guess"..tostring(i), function_owner=self, scale = {1.5,1.5,1.5},
+			position={ (i%2==0) and 0.9 or -0.9, 0.25, 1 + math.floor((i-1)/2)}, rotation={0,0,0}, width=550, height=250, font_size=130
 		})
 		
 		table.insert(cupObjects, cup)
@@ -267,7 +271,7 @@ function guessNumber(col, number)
 	
 	for i=1,#cupObjects do
 		local pos = cupObjects[i].getPosition()
-		local figurine = spawnObject({type = "Custom_Model", callback="resetObjectPosition", params={targetPos=pos}})
+		local figurine = spawnObject({type = "Custom_Model", callback_function=function(o) resetObjectPosition(o,targetPos) end})
 		figurine.setCustomObject(i==safeNumber and objects["Deer"] or objects["Wolf"])
 		
 		figurine.setColorTint( i==safeNumber and {r=0,g=1,b=0} or {r=1,g=0,b=0} )
