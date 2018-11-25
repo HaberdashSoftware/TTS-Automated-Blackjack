@@ -69,6 +69,12 @@ function onUpdate()
 	onUpdate = ProcessQueue
 end
 
+function onObjectEnterContainer(bag,o)
+	if o~=self then return end
+	
+	Timer.destroy("PowerupBoardRefresh_"..tostring(self.guid))
+end
+
 -- Buttons
 function countPowerups()
 	local objects = self.getObjects()
