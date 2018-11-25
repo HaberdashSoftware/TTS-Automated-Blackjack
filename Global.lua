@@ -3380,7 +3380,12 @@ function payButtonPressed(o, color)
 							bet.setLock(false)
 							
 							if zid==1 and set.SplitUser and set.SplitUser.container then -- Only affects bet zone
-								set.SplitUser.container.putObject(bet)
+								local cont = set.SplitUser.container
+								Wait.frames(function()
+									if bet and cont and not (bet==nil or cont==nil) then
+										set.SplitUser.container.putObject(bet)
+									end
+								end, 0)
 							end
 						end
 					end
