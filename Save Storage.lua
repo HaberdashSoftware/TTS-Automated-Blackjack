@@ -122,33 +122,25 @@ end
 function onPlayerChangeColor(color)
 	-- Auto Save --
 	for _,oldCol in pairs({"Pink","Purple","Blue","Teal","Green","Yellow","Orange","Red","Brown","White"}) do -- Wouldn't it be nice if this function incldued the previous colour?
-		if playerZone[oldCol].wasSeated and not (Player[oldCol].seated or autoSaveData[oldCol]) then -- Player currently seated or currently saving this table
-			local tblObjects = playerZone[oldCol].tbl.getObjects()
-			local prestigeObjects = playerZone[oldCol].prestige.getObjects()
-			local zoneObjects = playerZone[oldCol].zone.getObjects()
+		local zone = playerZone[oldCol]
+		if zone.wasSeated and not (Player[oldCol].seated or autoSaveData[oldCol]) then -- Player currently seated or currently saving this table
+			local tblObjects = zone.tbl.getObjects()
+			local prestigeObjects = zone.prestige.getObjects()
+			local zoneObjects = zone.zone.getObjects()
 			
+			local plyID = zone.wasSeatedID
 			local foundSave = nil
-			for _,v in pairs(tblObjects) do
-				if v.interactable and not v.getLock() and v.getName():find("Player save", 1, false) then
-					foundSave = v
-					break
-				end
-			end
-			if not foundSave then
-				for _,v in pairs(zoneObjects) do
+			for _,objList in pairs({tblObjects,zoneObjects,prestigeObjects}) do
+				for _,v in pairs(objList) do
 					if v.interactable and not v.getLock() and v.getName():find("Player save", 1, false) then
-						foundSave = v
-						break
+						local id = v.getDescription():match("(%d+) - .*")
+						if (not id) or (id==plyID) then
+							foundSave = v
+							break
+						end
 					end
 				end
-			end
-			if not foundSave then
-				for _,v in pairs(prestigeObjects) do
-					if v.interactable and not v.getLock() and v.getName():find("Player save", 1, false) then
-						foundSave = v
-						break
-					end
-				end
+				if foundSave then break end
 			end
 			
 			if foundSave then
@@ -158,37 +150,15 @@ function onPlayerChangeColor(color)
 				-- local delay = 1
 				local objectsTbl = {}
 				
-				-- local targetPos = foundSave.getPosition()
-				-- targetPos.y = targetPos.y + 1
-				
 				-- Table stuff
-				for _,v in pairs(tblObjects) do
-					if v~=foundSave and v.interactable and not v.getLock() then
-						table.insert(objectsTbl, v)
-						v.lock()
-					end
-				end
-				-- Prestige stuff
-				for _,v in pairs(prestigeObjects) do
-					if v~=foundSave and v.interactable and not v.getLock() then
-						table.insert(objectsTbl, v)
-						v.lock()
-					end
-				end
-				
-				-- Play zone stuff, if not in round
-				local inRound = false
-				for _,v in pairs(zoneObjects) do
-					if v.tag=="Card" or (v.tag=="Figurine" and v.getLock()) then
-						inRound = true
-						break
-					end
-				end
-				if not inRound then
-					for _,v in pairs(zoneObjects) do
+				for _,objList in pairs({tblObjects,zoneObjects,prestigeObjects}) do
+					for _,v in pairs(objList) do
 						if v~=foundSave and v.interactable and not v.getLock() then
-							table.insert(objectsTbl, v)
-							v.lock()
+							local id = v.getDescription():match("(%d+) - .*")
+							if (not id) or (id==plyID) then
+								table.insert(objectsTbl, v)
+								v.lock()
+							end
 						end
 					end
 				end
@@ -200,7 +170,8 @@ function onPlayerChangeColor(color)
 			end
 		end
 		
-		playerZone[oldCol].wasSeated = (color==oldCol or Player[oldCol].seated)
+		zone.wasSeated = (color==oldCol or Player[oldCol].seated)
+		zone.wasSeatedID = Player[oldCol].seated and  Player[oldCol].steam_id or nil
 	end
 	
 	-- Auto load --
@@ -239,6 +210,10 @@ function onPlayerChangeColor(color)
 				local taken = starter.takeObject(params)
 				
 				if taken then
+					local oldDesc = taken.getDescription() or ""
+					if #oldDesc>0 then oldDesc = "\n\n"..oldDesc end
+					
+					taken.setDescription( ("%s - %s%s"):format( Player[color].steam_id, Player[color].steam_name, oldDesc ) )
 					playerSave.putObject(taken)
 				end
 			end
@@ -342,12 +317,21 @@ function free(o, color)
         local playerSave = saveContainer.takeObject(params)
         saveContainer.destruct()
         if not hadSave then updateSave(playerSave, color) end
+		
         params.position.y = params.position.y + 2
         local starter = starterBag.takeObject(params)
         local starterObjects = starter.getObjects()
         for i, object in ipairs(starterObjects) do
             params.position.y = params.position.y + 1.5
-            starter.takeObject(params)
+            local taken = starter.takeObject(params)
+			
+			if taken then
+				local oldDesc = taken.getDescription() or ""
+				if #oldDesc>0 then oldDesc = "\n\n"..oldDesc end
+				
+				taken.setDescription( ("%s - %s%s"):format( Player[color].steam_id, Player[color].steam_name, oldDesc ) )
+				playerSave.putObject(taken)
+			end
         end
         starter.destruct()
         -- table.insert(hadStarter, Player[color].steam_id)
