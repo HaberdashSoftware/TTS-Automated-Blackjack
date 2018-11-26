@@ -133,7 +133,7 @@ function onPlayerChangeColor(color)
 			for _,objList in pairs({tblObjects,zoneObjects,prestigeObjects}) do
 				for _,v in pairs(objList) do
 					if v.interactable and not v.getLock() and v.getName():find("Player save", 1, false) then
-						local id = v.getDescription():match("(%d+) - .*")
+						local id = v.getDescription():match("^(%d+) - .*")
 						if (not id) or (id==plyID) then
 							foundSave = v
 							break
@@ -154,7 +154,7 @@ function onPlayerChangeColor(color)
 				for _,objList in pairs({tblObjects,zoneObjects,prestigeObjects}) do
 					for _,v in pairs(objList) do
 						if v~=foundSave and v.interactable and not v.getLock() then
-							local id = v.getDescription():match("(%d+) - .*")
+							local id = v.getDescription():match("^(%d+) - .*")
 							if (not id) or (id==plyID) then
 								table.insert(objectsTbl, v)
 								v.lock()
