@@ -2007,6 +2007,7 @@ end
 function shuffleNewDeck()
 	mainDeck.shuffle()
 	mainDeck.lock()
+	mainDeck.interactable = false
 end
 
 
