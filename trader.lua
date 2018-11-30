@@ -1,3 +1,59 @@
+------------------------
+-- Collectable Trader --
+------------------------
+--- by my_hat_stinks ---
+------------------------
+
+-- If you're looking in this file, you probably want to know
+-- all the possible formats for collectable item descriptions.
+--
+--
+-- Descriptions
+-- Collectable <append> - This is REQURIED on the first line of every collectable.
+--                        `Collectible` is also acceptable.
+--                        If you use the <append> value, it will be added to the end
+--                        of the collectable's name in the trade menu. This allows you
+--                        two have two separate listings for one item.
+--
+-- Cost <quantity> <name> - The cost for the item. If <quantity> is excluded, it will default
+--                       to one of the listed item. <name> must match the required item
+--                       name exactly, including formatting.
+--                       Multiple Cost lines are allowed, all items will be required.
+--                       If <name> matches a set, all items in that set are added to cost.
+--
+-- CostType <type> - Cost type, defaults to "all" if excluded. Only one CostType can be listed.
+--                   All - All listed <cost> items (including sets) are required to purchase
+--                         this item.
+--                   Any - Any listed <cost> items (matching <quantity>) can be used to purchase
+--                         this item.
+--                         If a set is listed in Cost, <quantity> is the number of items from the
+--                         set required.
+--
+-- Requires <name> - Items that are required, but NOT consumed, when purchasing this listing.
+--                   Completely optional.  <name> must match the required item name exactly,
+--                   including formatting.
+--                   `Require` is also acceptable.
+--
+-- Category <Directory> - The menu this item should appear under. `>` indicates a sub-menu.
+--                        Items without a Category will be listed on the main menu.
+--                        Only one Category can be listed per item. Use Collectable <append>
+--                        for additional listings.
+--
+-- Set <set name> - Optional. Marks this item as part of a set. Items do not need to be purchasable
+--                  to be part of a set.
+--
+--
+-- Complete Example:
+--
+-- Collectable
+-- CostType: All
+-- Cost: 20 Collectable token
+-- Cost: Reward token
+-- Requires: [DEB444]Prestige 8[-]
+-- Require: Bankruptcy token
+-- Category: Main Directory > Sub Directory > Bottom Directory
+--
+
 
 TradeItems = {}
 
@@ -293,7 +349,7 @@ function refreshAllItems()
 	
 	for _,obj in pairs(getAllObjects()) do
 		if obj.getDescription():match("^Collect[ai]ble") then
-			registerItem( obj )
+			registerItem( obj, obj.getDescription():match("^Collect[ai]ble *([^\n]*)") )
 		end
 	end
 	
@@ -304,7 +360,7 @@ local TextToCostType = {
 	any = COST_ANY,
 	all = COST_ALL,
 }
-function registerItem( obj )
+function registerItem( obj, appendName )
 	local desc = obj.getDescription()
 	local name = obj.getName() or "[ITEM]"
 	
@@ -314,6 +370,10 @@ function registerItem( obj )
 			name = clone.getName() or name
 		end
 		destroyObject(clone)
+	end
+	
+	if appendName then
+		name = name .. " " .. tostring(appendName)
 	end
 	
 	
