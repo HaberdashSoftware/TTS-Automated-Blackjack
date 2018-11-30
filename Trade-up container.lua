@@ -81,6 +81,7 @@ function doTradeUp(s, strCol)
 	params.position = self.getPosition()
 	params.position.y = params.position.y
 	params.callback_function = unlockObject
+	params.smooth = false
 	
 	for k,v in pairs(chips) do -- Now we're only interested in things with values
 		local found = nil
@@ -111,6 +112,10 @@ function doTradeUp(s, strCol)
 				while v>0 do
 					local newChip = bag.takeObject(params)
 					
+					if ourColor then
+						newChip.setDescription( ("%s - %s"):format( Player[strCol].steam_id, Player[strCol].steam_name ) )
+					end
+					
 					if (not stackSeparator) and (not found) then
 						found = newChip
 						
@@ -132,7 +137,7 @@ function doTradeUp(s, strCol)
 	if waitTimer then
 		Wait.stop( waitTimer )
 	end
-	Wait.time( processTake, 2 )
+	Wait.time( processTake, 1 )
 end
 
 function processTake()

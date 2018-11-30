@@ -245,7 +245,7 @@ function convertStart(zone, color, upORdown, override)
                     end
                     local sort_func = function( a,b ) return a.value > b.value end
                     table.sort(sortedList, sort_func)
-                    convertChips(sortedList, zone)
+                    convertChips(sortedList, zone, color)
                 end
             end
         end
@@ -405,7 +405,7 @@ function overflowCheck(conversionList)
 end
 
 --Spawns chips using the sorted conversionList entries
-function convertChips(sortedList, zone)
+function convertChips(sortedList, zone, color)
     local spot = 1
     local spotCount = 0
     local heightMod = 0
@@ -420,7 +420,7 @@ function convertChips(sortedList, zone)
         local pos = zone.getPosition()
         local countRemaining = chipCount
         while countRemaining > 0 do
-            iBag.takeObject({
+            local newObj = iBag.takeObject({
                 position = {
                     pos.x + stackPosList[spot].x,
                     pos.y + stackPosList[spot].y + heightMod,
@@ -428,6 +428,9 @@ function convertChips(sortedList, zone)
                 },
                 rotation = chipRotation
             })
+			if newObj and color~="Black" then
+				newObj.setDescription( ("%s - %s"):format(Player[color].steam_id, Player[color].steam_name) )
+			end
             countRemaining = countRemaining - 1
             spotCount = spotCount + 1
             heightMod = heightMod + heightIncrease
