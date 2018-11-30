@@ -1,4 +1,28 @@
 
+
+local cardDestruct = [[
+function onLoad()
+	expireTime = os.time()+4
+end
+function onUpdate()
+	if expireTime and os.time()>expireTime then destroyObject(self) end
+end
+function onObjectEnterContainer(bag,o)
+	if o~=self then return end
+	
+	destroyObject(self)
+	
+	local contents = bag.getObjects()
+	local targetPos = bag.getPosition()
+	targetPos.y = targetPos.y + 2
+	for i=#contents,1,-1 do
+		if contents[i].lua_script==self.getLuaScript() then
+			local obj = bag.takeObject({index=contents[i].index, position=targetPos})
+			destroyObject(obj)
+		end
+	end
+end
+]]
 ActiveCard = nil
 function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser zone
 	if Global.getVar("roundStateID")~=2 and Global.getVar("roundStateID")~=3 then return end
@@ -18,15 +42,15 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 	
 	local params = {}
 	params.position = {0, 2.5, 0}
-	params.rotation = {0, 0, 0}
+	params.rotation = {0, 0, 180}
 	
 	local cloneDeck = deck.clone(params)
+	
+	params.rotation[3] = 0
 	ActiveCard = cloneDeck.takeObject(params)
 	ActiveCard.lock()
+	ActiveCard.setLuaScript(cardDestruct)
 	cloneDeck.destruct()
-	
-	-- Timer.create({identifier='pwup_RemoveActiveCard', function_name='removeActiveCard', delay=4})
-	Timer.create({identifier=d.powerup.getGUID()..'_ViewNext_RemoveActiveCard', function_owner = Global, function_name='forwardFunction', delay=4, parameters={function_name="destroyObject", data={ActiveCard}}})
 	
 	return
 end
