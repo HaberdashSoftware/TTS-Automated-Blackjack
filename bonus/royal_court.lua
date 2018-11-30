@@ -44,7 +44,6 @@ end
 
 
 local Royals = {["King"]=true, ["Queen"]=true, ["Jack"]=true, ["Ace"]=true}
--- local Royals = {["Joker"]=true}
 
 function dealPlayer( data )
 	if IsActive then

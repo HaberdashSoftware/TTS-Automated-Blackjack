@@ -79,7 +79,6 @@ function activate()
 	Global.call( "forwardFunction", {function_name="newDeck", data={}} ) -- Always use a fresh deck for this minigame
 	resetPosition()
 	
-	-- Global.call( "forwardFunction", {function_name="setRoundState", data={2}} )
 	for i, set in pairs(Global.getTable("objectSets")) do
 		Global.call( "forwardFunction", {function_name="clearPlayerActions", data={set.zone}} )
 		Global.call( "forwardFunction", {function_name="clearCardsOnly", data={set.zone}} )

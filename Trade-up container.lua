@@ -80,7 +80,6 @@ function doTradeUp(s, strCol)
 	params.index = nil
 	params.position = self.getPosition()
 	params.position.y = params.position.y
-	-- params.callback = unlockObject -- "unlockObject"
 	params.callback_function = unlockObject
 	
 	for k,v in pairs(chips) do -- Now we're only interested in things with values

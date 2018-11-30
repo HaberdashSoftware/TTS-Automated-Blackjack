@@ -146,15 +146,6 @@ chipList = {
 --Each line is one position. X is left/right, Z is up/down.
 --Do not edit Y, this is the height off of the table.
 stackPosList = {
-    -- {x=-2, y=0, z=2},
-    -- {x=0, y=0, z=2},
-    -- {x=2, y=0, z=2},
-    -- {x=-2, y=0, z=0},
-    -- {x=0, y=0, z=0},
-    -- {x=2, y=0, z=0},
-    -- {x=-2, y=0, z=-2},
-    -- {x=0, y=0, z=-2},
-    -- {x=2, y=0, z=-2},
     {x=0, y=0, z=0},
 }
 

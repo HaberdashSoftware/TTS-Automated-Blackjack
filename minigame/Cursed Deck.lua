@@ -40,7 +40,6 @@ function activate()
 	
 	resetPosition()
 	
-	-- Global.call( "forwardFunction", {function_name="setRoundState", data={2}} )
 	for i, set in pairs(Global.getTable("objectSets")) do
 		Global.call( "forwardFunction", {function_name="clearPlayerActions", data={set.zone}} )
 		Global.call( "forwardFunction", {function_name="clearCardsOnly", data={set.zone}} )
@@ -366,11 +365,9 @@ end
 
 
 function blackjackEndRound(d)
-	-- if d.color=="Lua" then
-		endGame()
-		
-		return true
-	-- end
+	endGame()
+	
+	return true
 end
 
 -- Card Counting

@@ -40,7 +40,6 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 		
 		if d.setUser.color~=d.setTarget.color and d.setUser.color~=d.setTarget.UserColor then
 			local newVal = d.setTarget.value + cVal
-			-- if d.setTarget.value>21 and (not (d.setTarget.value>=68 and d.setTarget.value<=72)) and newVal<21 and newVal>dlr then
 			if newVal<=21 and (not (d.setTarget.value>=68 and d.setTarget.value<=72)) and newVal>dlr and dlr<=21 and d.setTarget.value<=dlr then
 				Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} )
 			end

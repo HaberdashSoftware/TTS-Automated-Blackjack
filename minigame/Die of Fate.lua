@@ -208,7 +208,6 @@ end
 function checkRollEnd()
 	local waiting = true
 	while (os.time()<rollWaitTime) or ((not self.resting) and (os.time()<rollTimeout)) do
-	-- while (os.time()<rollWaitTime) or (os.time()<rollTimeout) do
 		coroutine.yield(0)
 	end
 	

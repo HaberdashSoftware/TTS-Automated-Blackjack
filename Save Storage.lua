@@ -27,7 +27,6 @@ end
 function populateTable()
     local saveObjects = self.getObjects()
     for i, object in ipairs(saveObjects) do
-        -- table.insert(hadStarter, object.name)
 		hadStarter[object.name or ""] = true
     end
 end
@@ -87,7 +86,6 @@ function DoAutoSave(data, ...)
 	if obj then
 		if not (obj==nil) then -- DO NOT remove the brackets here. (obj==nil) == (not obj==nil), (obj==nil) != (not (obj==nil))
 			obj.unlock()
-			-- obj.setPosition( data.targetPos )
 			data.save.putObject( obj )
 		end
 		
@@ -147,7 +145,6 @@ function onPlayerChangeColor(color)
 				foundSave.lock()
 				foundSave.setRotation( {0,0,0} )
 				
-				-- local delay = 1
 				local objectsTbl = {}
 				
 				-- Table stuff
@@ -186,12 +183,10 @@ function onPlayerChangeColor(color)
                 updateSave(foundObject, color)
                 broadcastToColor("Save found: Welcome back ".. Player[color].steam_name .."!", color, {0.25,1,0.25})
 				
-				-- table.insert(hadStarter, Player[color].steam_id)
 				hadStarter[Player[color].steam_id or ""] = true
                 return
             end
         end
-        -- broadcastToColor("No save found: To get your free starter bag click the 'Free' button.", color, {0.25,1,0.25})
 		
 		-- Auto New --
 		if not hadStarter[Player[color].steam_id or ""] then
@@ -219,7 +214,6 @@ function onPlayerChangeColor(color)
 			end
 			starter.destruct()
 			
-			-- table.insert(hadStarter, Player[color].steam_id)
 			hadStarter[Player[color].steam_id or ""] = true
 		else
 			broadcastToColor("Auto-load: Failed to load save.\nDo you already have your save?", color, {1,0.25,0.25})
@@ -247,19 +241,6 @@ function save(o, color)
         params.position = self.getPosition()
         for i, object in ipairs(foundObjects) do
             if string.find(object.getName(), 'Player save:') then
-                -- local id = object.getDescription()
-                -- for j, found in ipairs(saveObjects) do
-                    -- if found.name == id then
-                        -- broadcastToColor("Error: Duplicate save found.\nRetrieve your save before trying again.", color, {1,0.25,0.25})
-                        -- return
-                    -- end
-                -- end
-                -- local clonedObject = object.clone(params)
-                -- object.destruct()
-                -- clonedObject.setName(id)
-                -- clonedObject.setDescription('')
-                -- return
-				
 				table.insert(saveQueue, {object, color})
 				saveFound = true
             end
@@ -283,7 +264,6 @@ function claim(o, color)
         local params = {}
         params.position = playerZone[color].zone.getPosition()
         for i, object in ipairs(saveObjects) do
-            -- if object.name == Player[color].steam_id then
 			if object.name:match("%d+$") == Player[color].steam_id then
                 params.index = object.index
                 local foundObject = self.takeObject(params)
@@ -334,7 +314,6 @@ function free(o, color)
 			end
         end
         starter.destruct()
-        -- table.insert(hadStarter, Player[color].steam_id)
 		hadStarter[Player[color].steam_id or ""] = true
     else
         broadcastToColor("Error: Button delay is active.\nWait a moment then try again.", color, {1,0.25,0.25})
@@ -362,7 +341,6 @@ function purge(time, col) -- Based on unix time, so time argument is seconds
 		if find and ((tonumber(find) or 0) <= purgeTime) then
 			params.guid = object.guid
 			local foundObject = self.takeObject(params)
-			--destroyObject(foundObject)
 			foundObject.destruct()
 			
 			count = count + 1

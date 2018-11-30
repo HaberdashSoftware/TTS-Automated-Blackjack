@@ -9,7 +9,6 @@ for i=1,#powerupsTable do
 	for n=1,#powerupsTable[i] do
 		numPowerups[powerupsTable[i][n]] = 0
 		_G["doDeploy_"..tostring(powerupsTable[i][n])] = function(_,c)
-			-- deployPowerup(tostring(powerupsTable[i][n]), c)
 			deployQueue(tostring(powerupsTable[i][n]), c)
 		end
 	end

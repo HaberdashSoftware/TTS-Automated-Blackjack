@@ -69,13 +69,7 @@ function onload()
 		-- Internal - Do not use
 		["Fifth Card"] = {who="", effect="FifthCard"},
 	}
-
-	-- powerupTable = {
-		-- "2c564b", "432519", "cd6cd1", "a4883c",
-		-- "7b7031", "4a8de2", "fcaebe", "48ae1d",
-		-- "3bf915", "b5851f", "81121a", "60a985",
-		-- "c663e1", "f0150d", "84928d"
-	-- }
+	
 	powerupTable = {}
 	for _,id in pairs({ "2c564b", "432519", "cd6cd1", "a4883c", "7b7031", "4a8de2", "fcaebe", "48ae1d", "3bf915", "b5851f", "81121a", "60a985", "c663e1", "f0150d", "84928d" }) do
 		local obj = getObjectFromGUID(id)
@@ -102,19 +96,7 @@ function onload()
 		TripleSeven = getObjectFromGUID("fa1dc7"),
 		Unused = getObjectFromGUID("9b7f31"),
 	}
-
-	-- bonusTable = {
-		-- getObjectFromGUID("91fe78"),
-		-- getObjectFromGUID("24ab87"),
-		-- getObjectFromGUID("87ad6d"),
-		-- getObjectFromGUID("83bc5a"),
-		-- getObjectFromGUID("8f532d"),
-		-- getObjectFromGUID("10fa12"),
-		-- getObjectFromGUID("4f5fd0"),
-		-- getObjectFromGUID("b31767"),
-		-- getObjectFromGUID("3f9f84")
-	-- }
-
+	
 	--The names (in quotes) should all match the names on your cards.
 	--The values should match the value of those cards.
 	--If you have powerup modifies (ex: +1 to score), it could be added here (again, figurine required)
@@ -207,7 +189,6 @@ function onload()
 	--A list of objects that we want to disable interaction for
 	objectLockdown = {
 		getObjectFromGUID("16f87e"), getObjectFromGUID("8e0429"), -- Dealer area
-		--getObjectFromGUID("2bc366"), -- Fog
 		
 		-- Player tables
 		getObjectFromGUID("9871fe"), getObjectFromGUID("8eafbb"), -- Pink
@@ -282,7 +263,6 @@ function onload()
 	checkForDeck()
 	findCardsToCount()
 	clearBonus()
-	--END OF CONFIGURATION SECTION
 end
 
 function lockObjects()
@@ -426,7 +406,6 @@ function onObjectPickUp(col, obj)
 				obj.setDescription( ("%s - %s"):format(Player[col].steam_id, Player[col].steam_name) )
 			end
 		elseif (not Player[col].admin) and desc:find("^(%d+) %- .*") then
-		-- elseif desc:find("^(%d+) %- .*") then
 			obj.reload()
 			
 			for k,adminCol in pairs(getSeatedPlayers()) do
@@ -459,7 +438,6 @@ function checkPowerupEffect(colorOfDropper, droppedObject, who, effect, setTarge
 	
 	if inMinigame then
 		if minigame and (not (minigame==nil)) and minigame.getVar("blackjackCanUsePowerup") and minigame.Call("blackjackCanUsePowerup", {setUser=setUser, setTarget=setTarget, object=droppedObject, who=who, effect=effect}) then
-			-- return checkPowerupDropZone(colorOfDropper, droppedObject, power.who, power.effect)
 		else
 			printToColor( "You can't use this powerup during this minigame. Try again later.", colorOfDropper, {1,0.25,0.25} )
 			return
@@ -669,10 +647,9 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 				end
 			end
 			
-			-- clearCardsOnly(setTarget.zone)
 			clearCards(setTarget.zone)
 			if currentPlayerTurn==setTarget.color then playerStand(setTarget.btnHandler,"Black") end
-			-- powerup.setName(powerup.getName().. "*")
+			
 			return true
 		else
 			broadcastToColor("Must use powerup on a zone with cards in it, cannot be played on a busted player.", setUser.color, {1,0.5,0.5})
@@ -783,7 +760,6 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 				end
 			end
 			
-			-- clearCards(setUser.zone)
 			clearCardsOnly(setUser.zone)
 			cloneHandZone(setTarget.zone, setUser.zone)
 			destroyObject(powerup)
@@ -859,7 +835,6 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 			
 			if setTarget.color=="Dealer" then
 				if (setTarget.value<=21 and setTarget.value+nextCardValue>21) or (setTarget.value>=68 and setTarget.value<=72) then
-					-- giveReward( "Help", setUser.zone )
 					for i=2,#objectSets do
 						local s = objectSets[i]
 						if s~=setUser and s.UserColor~=setUser.color and (s.value>0 or s.count>0) and s.value<=21 and s.value<=setTarget.value then -- Helped someone
@@ -983,7 +958,6 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 			
 			if setTarget.color=="Dealer" then
 				if setTarget.count==4 and setTarget.value<=21 and setTarget.value>0 then -- This makes 5 card bust
-					-- giveReward( "Help", setUser.zone )
 					for i=2,#objectSets do
 						local s = objectSets[i]
 						if (s~=setUser and s.SplitUser~=setUser) and (s.value>0 or s.count>0) and s.value<=setTarget.value then
@@ -1149,7 +1123,7 @@ function activatePowerupEffect(effect, setTarget, powerup, setUser)
 	
 	findCardsToCount()
 end
--- function AddPowerup(obj, who, effectName, func)
+
 function AddPowerup(data) -- If TTS devs ever get over their weird phobia of using functions as variables (How Lua was DESIGNED) this function will be more useful. For now, on the object use `Global.call("AddPowerup", dataTable)` and have a global `powerupUsed` function.
 	if not (data.obj and data.who) then return end
 	
@@ -1179,18 +1153,12 @@ function swapHandZones(zone1, zone2, tableZ1, tableZ2)
 		local pos = findCardPlacement(zone2, i)
 		card.setPosition(pos)
 		
-		-- if card.getTable("blackjack_playerSet") then
-			-- card.setTable("blackjack_playerSet", findObjectSetFromZone(zone1) or {})
-		-- end
 		cardPlacedCallback(card, {targetPos=pos, set=findObjectSetFromZone(zone2), isStarter=card.getTable("blackjack_playerSet"), flip=true})
 	end
 	for i, card in ipairs(tableZ2) do
 		local pos = findCardPlacement(zone1, i)
 		card.setPosition(pos)
 		
-		-- if card.getTable("blackjack_playerSet") then
-			-- card.setTable("blackjack_playerSet", findObjectSetFromZone(zone1) or {})
-		-- end
 		cardPlacedCallback(card, {targetPos=pos, set=findObjectSetFromZone(zone1), isStarter=card.getTable("blackjack_playerSet"), flip=true})
 	end
 end
@@ -1203,12 +1171,8 @@ function cloneHandZone(targetZone, userZone)
 		for i, card in ipairs(targetCardList) do
 			local pos = findCardPlacement(userZone, i)
 			local clone = card.clone({position=pos}) -- Why is there no callback for this function?
-			-- local clone = card.clone({position=pos, callback="cardPlacedCallback", callback_owner=Global, params={targetPos=pos, set=findObjectSetFromZone(userZone), isStarter=card.getTable("blackjack_playerSet")}})
 			clone.setPosition(pos)
-		
-			-- if card.getTable("blackjack_playerSet") then
-				-- card.setTable("blackjack_playerSet", findObjectSetFromZone(userZone) or {})
-			-- end
+			
 			cardPlacedCallback(clone, {targetPos=pos, set=findObjectSetFromZone(userZone), isStarter=card.getTable("blackjack_playerSet"), flip=true})
 		end
 	else
@@ -1232,14 +1196,9 @@ function DoDealersCards()
 			
 			local z = card.getRotation().z
 			if z > 15 and z < 345 then
-				--card.flip()
 				local pos = card.getPosition()
 				card.setRotation({0,0,0})
 				card.setPosition(pos)
-				
-				-- local pos = card.getPosition()
-				-- pos.y = pos.y + 0.2
-				-- card.setPosition(pos)
 				
 				waitTime(0.5)
 			end
@@ -1255,7 +1214,6 @@ function DoDealersCards()
 	while (set.value<standValue and set.value<=21 and set.value>0 and set.count<5) do
 		if not dealingDealersCards then return end
 		
-		-- if lastCard and lastCard.getName()=="Joker" then
 		if set.value>=0 then
 			hitCard(set.btnHandler, "Black")
 			
@@ -1278,7 +1236,7 @@ function DoDealersCards()
 		printToAll("Dealer: Stand.", {0.1,0.1,0.1})
 	elseif set.value>21 then
 		printToAll("Dealer: Bust.", {0.1,0.1,0.1})
-	else --if set.value>=17 then
+	else
 		printToAll("Dealer: Stand on ".. tostring(set.value) ..".", {0.1,0.1,0.1})
 	end
 	
@@ -1320,7 +1278,6 @@ function forcedCardDraw(targetZone)
 	placeCard(pos, true, findObjectSetFromZone(targetZone), false)
 end
 
--- function spawnRandomObjectFromTable(targetZone, objectTable)
 function spawnRandomPowerup(targetZone)
 	if #powerupTable==0 then return false end
 	
@@ -1591,9 +1548,6 @@ local SoftHandDisplay = {
 	[1] = "①", [2] = "②", [3] = "③", [4] = "④", [5] = "⑤", [6] = "⑥", [7] = "⑦", [8] = "⑧", [9] = "⑨", [10] = "⑩",
 	[11] = "⑪", [12] = "⑫", [13] = "⑬", [14] = "⑭", [15] = "⑮", [16] = "⑯", [17] = "⑰", [18] = "⑱", [19] = "⑲", [20] = "⑳",
 	[21] = "㉑",
-	-- [1] = "\u{2460}", [2] = "\u{2461}", [3] = "\u{2462}", [4] = "\u{2463}", [5] = "\u{2464}", [6] = "\u{2465}", [7] = "\u{2466}", [8] = "\u{2467}", [9] = "\u{2468}", [10] = "\u{2469}",
-	-- [11] = "\u{2470}", [12] = "\u{2471}", [13] = "\u{2472}", [14] = "\u{2473}", [15] = "\u{2474}", [16] = "\u{2475}", [17] = "\u{2476}", [18] = "\u{2477}", [19] = "\u{2478}", [20] = "\u{2479}",
-	-- [21] = "\u{3251}",
 }
 local specialHandDisplay = {
 	[-69] = "\u{2620}", [100] = "\u{2620}", -- Bust
@@ -1615,8 +1569,6 @@ function displayResult(hand, value, soft)
 		end
 	end
 	
-	-- if value == -69 or value==100 then valueLabel = "\u{2620}"
-	-- elseif value > 67 and value < 72 then valueLabel = "\u{2664}"
 	if specialHandDisplay[value] then
 		valueLabel = specialHandDisplay[value]
 	else
@@ -1645,7 +1597,6 @@ function checkForBlackjack(value, facedownCard)
 	end
 	if (facedownValue==0 and value==10) or (facedownValue==10 and value==11) then
 		if revealBool == true then
-			-- facedownCard.flip()
 			facedownCard.setRotation({0,0,0})
 			
 			local pos = facedownCard.getPosition()
@@ -1751,10 +1702,8 @@ end
 function onObjectDestroy( obj )
 	if obj==roundTimer then
 		roundTimer = nil
-		-- if roundState then roundState.destruct() end
 	elseif obj==roundState then
 		roundState = nil
-		-- if roundTimer then roundTimer.destruct() end
 	end
 end
 
@@ -1831,7 +1780,6 @@ function clearBonus()
 		for i, object in ipairs(objectList) do
 			if object.tag == "Figurine" and object.getLock() then
 				object.destruct()
-				-- break
 			end
 		end
 	else
@@ -1847,18 +1795,15 @@ local function RunBonusFunc( funcName, data, returnFunc )
 	
 	for i=#bonusObjects,1,-1 do
 		local obj = bonusObjects[i]
-		if obj and obj~=NULL then
+		if obj and obj~=nil then
 			if obj.getVar(funcName) then
 				local newValue = obj.call(funcName, data)
 				
 				if newValue~=nil then
-					-- if firstResult then return ret end
-					
-					-- ret = newValue --  Uses value from oldest bonus, if there's multiple returns
 					table.insert( ret, newValue )
 				end
 				
-				if obj==NULL then -- Does this check work on the same frame as removal?
+				if obj==nil then -- Does this check work on the same frame as removal?
 					table.remove(bonusObjects, i)
 				end
 			end
@@ -1974,7 +1919,6 @@ function onObjectEnterScriptingZone(zone, object)
 			if (not col) then
 				object.setPosition( {0,10,0} )
 			elseif (col~="Black" and not Player[col].admin) then -- Someone adding to the zone that shouldn't be
-				-- object.translate( {0,0.5,0} ) -- Wouldn't it be nice if there was a proper function to force players to drop?
 				object.destruct()
 			end
 			
@@ -2193,11 +2137,6 @@ function cardPlacedCallback(obj, data)
 	end
 end
 function placeCard(pos, flipBool, set, isStarter)
-	-- if (mainDeck ~= nil) and mainDeck.getQuantity()>40 then
-		-- lastCard = mainDeck.takeObject({position=pos, flip=flipBool, callback="cardPlacedCallback", callback_owner=Global, params={targetPos=pos, flip=flipBool, set=set, isStarter=isStarter}})
-	-- else
-		-- print("ERROR: No deck found, press the New Deck button.")
-	-- end
 	if (not mainDeck) or (mainDeck==nil) or mainDeck.getQuantity()<40 then
 		newDeck()
 	end
@@ -2361,12 +2300,6 @@ function reverseTable(table)
 	return reverse
 end
 
--- function waitFrames(frames)
-	-- while frames > 0 do
-		-- coroutine.yield(0)
-		-- frames = frames - 1
-	-- end
--- end
 function waitTime(tm)
 	local endTime = os.clock() + tm -- Using os.clock in this way seems... Dirty. Better than locking speed to FPS, though.
 	while os.clock() < endTime do
@@ -2400,7 +2333,6 @@ end
 
 local bankruptData = {}
 function playerBankrupt(handler, color)
-	-- local set = findObjectSetFromButtons(handler)
 	local set = findObjectSetFromKey(handler, "tbl")
 	
 	if set and color == set.color then
@@ -2478,7 +2410,6 @@ end
 -----------
 local prestigeData = {}
 function playerPrestige(handler, color)
-	-- local set = findObjectSetFromButtons(handler)
 	local set = findObjectSetFromKey(handler, "tbl")
 	
 	if set and color == set.color then
@@ -2675,7 +2606,6 @@ function dealButtonPressed(o, color)
 			bonusOnRoundStart()
 			
 			local playerList = getSeatedPlayers()
-			-- local playerList = {"White", "Brown", "Red", "Orange", "Yellow", "Green", "Teal", "Blue", "Purple", "Pink"} --debug line
 			dealOrder = {}
 			for i, player in ipairs(playerList) do
 				local set = findObjectSetFromColor(player)
@@ -2713,7 +2643,6 @@ function dealInOrder()
 	findCardsToCount()
 	
 	-- Lock Chips
-	-- for _,ply in pairs(dealOrder) do
 	for i=#dealOrder,1,-1 do
 		local set = findObjectSetFromColor(dealOrder[i])
 		if set then
@@ -2781,7 +2710,6 @@ end
 
 function whoGoesFirst(table)
 	for i=#objectSets,1,-1 do
-		-- if table.set.value > 21 then
 		if objectSets[i].color==table.set.color then -- For some reason timers create a copy of the table, not referencing the table itself. Does TTS do ANYTHING right?
 			if objectSets[i].value>21 then
 				passPlayerActions(table.set.zone)
@@ -2948,7 +2876,6 @@ local function repeatBet( color, set, setTarget, addHeight )
 	local zonePos = setTarget.zone.getPosition()
 	
 	if container and set==setTarget then
-		-- container.setRotation( {0,0,0} )
 		zonePos = container.getPosition()
 		zonePos.y = zonePos.y + 2
 	else
@@ -2961,7 +2888,6 @@ local function repeatBet( color, set, setTarget, addHeight )
 	
 	local placedBag = nil
 	local chipIDs = {}
-	-- if betBags and #foundStacks>1 and not (container and set==setTarget) then
 	if betBags and #foundStacks>1 then
 		placedBag = betBags.takeObject( {position=zonePos, rotation={0,0,0}} )
 		zonePos.y = zonePos.y+3
@@ -3161,7 +3087,6 @@ function playerHit(btnHandler, color)
 			else
 				checkForBust(set, (mainDeck and (not (mainDeck==nil)) and mainDeck.getObjects()[1] or {}).nickname or "")
 				forcedCardDraw(set.zone)
-				--delayedCallback('checkForBust', {set=set}, 1.3)
 			end
 		else
 			broadcastToColor("Error: Button delay is active.\nWait a moment then try again.", color, {1,0.25,0.25})
@@ -3232,9 +3157,7 @@ function playerStand(btnHandler, color)
 		
 		if not lockout then
 			endTurnTimer(set, true)
-			-- lockoutTimer(1)
 			clearPlayerActions(set.zone)
-			-- passPlayerActions(set.zone)
 			lockoutTimer(0.5)
 			
 			delayedCallback('delayedPassPlayerActions', {zone=set.zone, color=set.color}, 0.25)
@@ -3516,9 +3439,8 @@ function processPayout(zone, iterations, lockedOnly)
 				local clone = bet.clone(params)
 				clone.setLock(true)
 				clone.setPosition(params.position)
-				-- if ((not clone.script_code) or clone.script_code=="") or clone.tag=="Bag" then -- No existing script, or is bag
-					clone.setLuaScript( selfDestructScript:format(((iterations/10)+2)*1.25) )
-				-- end
+				
+				clone.setLuaScript( selfDestructScript:format(((iterations/10)+2)*1.25) )
 				
 				
 				local betID = bet.getDescription():match("^(%d+) %- .*")
@@ -3585,7 +3507,6 @@ function payBet(table)
 	
 	if table.bet.tag == "Chip" and not powerupEffectTable[table.bet.getName()] then
 		local payout = table.bet.clone(params)
-		-- payout.setPositionSmooth({params.position.x, params.position.y, params.position.z})
 		payout.setPosition(params.position)
 		
 		payout.interactable = true

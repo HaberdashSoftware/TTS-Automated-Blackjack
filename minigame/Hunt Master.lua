@@ -69,7 +69,6 @@ function activate()
 	bonusZone = Global.getVar("bonusZone")
 	resetPosition()
 	
-	-- Global.call( "forwardFunction", {function_name="setRoundState", data={2}} )
 	for i, set in pairs(Global.getTable("objectSets")) do
 		Global.call( "forwardFunction", {function_name="clearPlayerActions", data={set.zone}} )
 		Global.call( "forwardFunction", {function_name="clearCardsOnly", data={set.zone}} )
@@ -224,12 +223,7 @@ function setWolves(handler, col, numWolves)
 		return
 	end
 	
-	-- handler.clearButtons()
 	Global.call( "forwardFunction", {function_name="clearPlayerActions", data={Global.call( "forwardFunction", {function_name="findObjectSetFromColor", data={userCol}} ).zone, i}} )
-	-- handler.createButton({
-		-- label="In Progress", click_function="doNull", function_owner=self, scale = {1.5,1.5,1.5},
-		-- position={0, 0.25, 2}, rotation={0,0,0}, width=750, height=350, font_size=130
-	-- })
 	
 	cupObjects = {}
 	cleanupFigurnes()

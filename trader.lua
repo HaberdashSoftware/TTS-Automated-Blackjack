@@ -278,7 +278,6 @@ function processCostAny( c, tblCost, set )
 						missingCost.Required = (missingCost.Required or 0) - count
 					end
 					
-					-- for k in pairs(missingFromSets) do
 					if (not missingCost.Required) or missingCost.Required<=0 then
 						done = true
 						

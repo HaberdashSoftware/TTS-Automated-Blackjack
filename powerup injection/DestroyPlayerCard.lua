@@ -32,7 +32,6 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 		end
 		
 		local cVal = Global.getTable("cardNameTable")[card.getName()]
-		-- if not cVal then return end -- Someone's done something bad
 		if cVal==0 then cVal=1 end -- Ace
 		
 		destroyObject(card)

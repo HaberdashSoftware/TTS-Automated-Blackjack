@@ -577,7 +577,7 @@ function takeAction( col, actionID )
 		playingUsers[col].PendingAction = actionID
 		
 		setupTargetButtons( set.btnHandler )
-	else --if (not action.target) or action.target==TARGET_SELF then
+	else
 		for i=1,#action.effects do
 			local eff = action.effects[i]
 			addEffect( col, set.zone, eff.name or action.name, eff, i-1 )
@@ -667,7 +667,6 @@ end
 
 function targetColor( user, target )
 	if not (user and target) then return end
-	-- if (not playingUsers[target]) or playingUsers[target].CurHP<=0 then return end -- Target not in minigame
 	if not validPlayer(user) then return clearButtons(user) end
 	
 	if not playingUsers[user].PendingAction then return end
@@ -768,7 +767,6 @@ function addLoot( zone, addPos )
 	end
 	
 	local pos = Global.call( "forwardFunction", {function_name="findPowerupPlacement", data={zone, count + 1 + (addPos or 0)}} )
-	-- pos[1] = pos[1] + 0.2
 	createEffectObject( pos, lootIcon, "Loot", "When the game ends, this transforms into a random reward.", {r=1,g=1,b=1} )
 end
 
@@ -1140,7 +1138,6 @@ function beginPayout()
 		end
 	end
 	
-	-- Timer.create( {identifier="DragonLairMinigame-processLoot", function_name="processLoot", function_owner=self, parameters={}, delay=0.25, repetitions=0} )
 	startLuaCoroutine( self, "processLoot" )
 end
 
@@ -1183,9 +1180,6 @@ function processLoot()
 	until not foundLoot
 	
 	waitTime( toProcess and 5 or 1 )
-	
-	-- Timer.destroy('DragonLairMinigame-ProcessLoot')
-	-- Timer.create({identifier='DragonLairMinigame-ProcessLoot', function_name='findCardsToCount', delay=0.8})
 	
 	doPayout()
 	

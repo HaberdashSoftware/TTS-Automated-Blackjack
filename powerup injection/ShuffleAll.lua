@@ -27,7 +27,7 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 			return false
 		end
 		
-		local cardCount = {} -- for i=1,#handsWithCards do cardCount[i] = 0 end
+		local cardCount = {}
 		local loggedCards = {}
 		while #allCards>0 do
 			local obj = allCards[#allCards]
