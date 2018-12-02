@@ -2393,7 +2393,12 @@ function playerBankrupt(handler, color)
 			
 			doBankruptDestruction(set)
 			
-			takeObjectFromContainer( set.tbl, "15a03a" )
+			local newObj = takeObjectFromContainer( set.tbl, "15a03a" )
+			if newObj then
+				local oldDesc = newObj.getDescription()
+				newObj.setDescription( ("%s - %s\n\n%s"):format(Player[color].steam_id, Player[color].steam_name, oldDesc) )
+			end
+			
 			bankruptData[color].lastDeclared = curTime
 			
 			if not (bankruptData[color].lastAnnouncement and bankruptData[color].lastAnnouncement+300>curTime) then
