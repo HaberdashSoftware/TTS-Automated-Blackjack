@@ -3234,11 +3234,6 @@ function payButtonPressed(o, color)
 		
 		setRoundState( 1, hostSettings.iTimeBet and hostSettings.iTimeBet.getValue() or 30 )
 		
-		if not inMinigame then
-			bonusOnRoundEnd()
-		end
-		
-		inMinigame = false
 		if minigame and not (minigame==nil) then
 			destroyObject(minigame)
 		end
@@ -3316,6 +3311,12 @@ function payButtonPressed(o, color)
 				end
 			end
 			concludeLockout()
+			
+			if not inMinigame then
+				bonusOnRoundEnd()
+			end
+			
+			inMinigame = false
 		else
 			broadcastToColor("Error: Button delay is active.\nWait a moment then try again.", color, {1,0.25,0.25})
 		end
