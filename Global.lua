@@ -2043,10 +2043,10 @@ end
 
 --Deals cards to the player. whichCard is a table with which # cards to deal
 function dealDealer(whichCard)
-	local override = RunBonusFunc( "dealDealer", {whichCard=whichCard} )
+	local override = RunBonusFunc( "dealDealer", {whichCard=whichCard or {}} )
 	if override==true then return end
 	
-	for i, v in ipairs(whichCard) do
+	for i, v in ipairs(whichCard or {}) do
 		local pos = findCardPlacement(objectSets[1].zone, v)
 		if v ~= 2 or (bonusShouldDealerReveal()) then
 			placeCard(pos, true, objectSets[1], v<=2)
@@ -2058,10 +2058,10 @@ end
 
 --Deals to player using same method as dealDealer
 function dealPlayer(color, whichCard)
-	local override = RunBonusFunc( "dealPlayer", {color=color, whichCard=whichCard} )
+	local override = RunBonusFunc( "dealPlayer", {color=color or "Black", whichCard=whichCard or {}} )
 	if override==true then return end
 	
-	for i, v in ipairs(whichCard) do
+	for i, v in ipairs(whichCard or {}) do
 		local set = findObjectSetFromColor(color)
 		if set then
 			local pos = findCardPlacement(set.zone, v)
