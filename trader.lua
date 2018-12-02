@@ -8,7 +8,7 @@
 -- all the possible formats for collectable item descriptions.
 --
 --
--- Descriptions
+-- Details
 -- Collectable <append> - This is REQURIED on the first line of every collectable.
 --                        `Collectible` is also acceptable.
 --                        If you use the <append> value, it will be added to the end
@@ -22,17 +22,28 @@
 --                       If <name> matches a set, all items in that set are added to cost.
 --
 -- CostType <type> - Cost type, defaults to "all" if excluded. Only one CostType can be listed.
---                   All - All listed <cost> items (including sets) are required to purchase
+--                   All - All listed Cost items (including sets) are required to purchase
 --                         this item.
---                   Any - Any listed <cost> items (matching <quantity>) can be used to purchase
+--                   Any - Any listed Cost items (matching <quantity>) can be used to purchase
 --                         this item.
 --                         If a set is listed in Cost, <quantity> is the number of items from the
---                         set required.
+--                         set required to purchase this item.
 --
 -- Requires <name> - Items that are required, but NOT consumed, when purchasing this listing.
 --                   Completely optional.  <name> must match the required item name exactly,
 --                   including formatting.
 --                   `Require` is also acceptable.
+--
+-- Limit <quantity> - The user can't purchase another of this item if they already have <quantity>.
+--                    If the item is part of a set, the limit counts for the entire set.
+--                    
+--
+-- SpawnAs <name> - Optional. Renames this item when it is spawned. Can include additional variables
+--                  for dynamic names, case sensitive:
+--                   {name} - Changes to the Steam name of the user.
+--                   {id} - Changes to the Steam ID of the user.
+--                   {color} - Changes to the color of the user at time of purchase.
+--                  os.date() formatting is also available, eg "%Y-%b-%d" to mark the purchase date.
 --
 -- Category <Directory> - The menu this item should appear under. `>` indicates a sub-menu.
 --                        Items without a Category will be listed on the main menu.
@@ -82,7 +93,7 @@ function doNull() end
 -- Buy Item --
 --------------
 
-function spawnObject( item, c )
+function spawnObject( item, c, spawnAs )
 	local ourColor = c and self.getName():lower():find(c:lower())
 	
 	local params = {}
@@ -99,13 +110,17 @@ function spawnObject( item, c )
 	clone.setPosition(params.position)
 	clone.setDescription( ourColor and ("%s - %s"):format( Player[c].steam_id, Player[c].steam_name) or "" )
 	
-	Wait.frames(function()
-		if clone and ourColor and clone.tag=="Bag" then
-			clone.reset()
-			
-			clone.setName( "Player save: " .. Player[c].steam_name )
-		end
-	end, 0)
+	if spawnAs then
+		Wait.frames(function()
+			if spawnAs and ourColor and Player[c].seated and clone and not (clone==nil) then
+				clone.reset()
+				
+				local newStr = os.date(spawnAs, os.time()):gsub("{name}", Player[c].steam_name):gsub("{id}", Player[c].steam_id):gsub("{color}", c)
+				
+				clone.setName( newStr )
+			end
+		end, 0)
+	end
 end
 function buyItem( data, c )
 	if not data.item then
@@ -147,9 +162,9 @@ function buyItem( data, c )
 			
 			if data.cost then
 				if data.costType==COST_ANY then
-					if not processCostAny(c, data.cost, set) then return end
+					if not processCostAny(c, data, set) then return end
 				else
-					if not processCostAll(c, data.cost, set) then return end
+					if not processCostAll(c, data, set) then return end
 				end
 			end
 		end
@@ -158,10 +173,12 @@ function buyItem( data, c )
 		return
 	end
 	
-	spawnObject( data.item, c )
+	spawnObject( data.item, c, data.spawnAs )
 end
 
-function processCostAll( c, costData, set )
+function processCostAll( c, data, set )
+	local costData = data.cost
+	
 	local missingCost = TranslateSetsToItems( CopyTable(costData) )
 	local foundStacks = {}
 	
@@ -175,6 +192,10 @@ function processCostAll( c, costData, set )
 			if missingCost[name] and missingCost[name]>0 and item.interactable and not (item.getLock()) then
 				local count = item.getQuantity()
 				if count==-1 then count = 1 end
+				
+				if item.tag=="Bag" then
+					count = 1
+				end
 				
 				if count>missingCost[name] then
 					table.insert(foundStacks, {item, missingCost[name]})
@@ -198,6 +219,11 @@ function processCostAll( c, costData, set )
 		return false
 	end
 	
+	if exeedsLimits( data, {zoneObjects, tableObjects, prestigeObjects}, foundStacks ) then
+		broadcastToColor( "You have already reached your limit for this item.", c, {1,0.2,0.2} )
+		return false
+	end
+	
 	local pos = self.getPosition()
 	pos.y = pos.y + 5
 	
@@ -216,8 +242,9 @@ function processCostAll( c, costData, set )
 	
 	return true
 end
-
-function processCostAny( c, tblCost, set )
+function processCostAny( c, data, set )
+	local tblCost = data.cost
+	
 	local missingFromSets = {}
 	local foundInSets = {}
 	
@@ -296,6 +323,10 @@ function processCostAny( c, tblCost, set )
 		broadcastToColor( "You don't have the necessary items on your table to buy this item.", c, {1,0.2,0.2} )
 		return false
 	end
+	if exeedsLimits( data, {zoneObjects, tableObjects, prestigeObjects}, foundStacks ) then
+		broadcastToColor( "You have already reached your limit for this item.", c, {1,0.2,0.2} )
+		return false
+	end
 	
 	local pos = self.getPosition()
 	pos.y = pos.y + 5
@@ -314,6 +345,67 @@ function processCostAny( c, tblCost, set )
 	end
 	
 	return true
+end
+
+function exeedsLimits( data, zones, skipObjects )
+	if not data.limit then return false end
+	
+	local restrictedObjects = {}
+	
+	if data.item.tag=="Infinite" then
+		local clone = data.item.takeObject(params)
+		if clone then
+			restrictedObjects[clone.getName() or "[ITEM]"] = true
+		end
+		destroyObject(clone)
+	else
+		restrictedObjects[data.item.getName() or "[ITEM]"] = true
+	end
+	
+	local limitLeft = data.limit
+	if data.sets then
+		for i=1,#data.sets do
+			for name in pairs(TradeSets[data.sets[i]] or {}) do
+				restrictedObjects[name] = true
+			end
+		end
+	end
+	
+	for _,zone in pairs(zones) do
+		for j, item in ipairs(zone) do
+			local name = item.getName()
+			
+			if restrictedObjects[name] then
+				local count = item.getQuantity()
+				if count==-1 then count = 1 end
+				
+				if item.tag=="Bag" then
+					count = 1
+				end
+				
+				for i=1,#skipObjects do
+					local tbl = skipObjects[i]
+					
+					if tbl[1]==item then
+						if tbl[2] then
+							count = count - tbl[2]
+						else
+							count = count - 1
+						end
+					end
+				end
+				
+				if count>0 then
+					limitLeft = limitLeft - count
+					
+					if limitLeft<=0 then return true end
+				end
+			end
+		end
+	end
+	if limitLeft<= 0 then return true end
+	
+	return false
 end
 
 -- Register Items --
@@ -347,8 +439,8 @@ function refreshAllItems()
 	ListPage = 0
 	
 	for _,obj in pairs(getAllObjects()) do
-		if obj.getDescription():match("^Collect[ai]ble") then
-			registerItem( obj, obj.getDescription():match("^Collect[ai]ble *([^\n]*)") )
+		if obj.getDescription():match("^[Cc]ollect[ai]ble") then
+			registerItem( obj, obj.getDescription():match("^[Cc]ollect[ai]ble *([^\n]*)") )
 		end
 	end
 	
@@ -378,13 +470,13 @@ function registerItem( obj, appendName )
 	
 	local CostType = COST_ALL
 	local hasCost = false
-	for foundType in desc:gmatch("CostType:? *([^\n]+)") do
+	for foundType in desc:gmatch("[Cc]ost[Tt]ype:? *([^\n]+)") do
 		CostType = TextToCostType[ foundType:lower() ] or CostType
 	end
 	
 	local cost = {}
 	local hasCost = false
-	for num,item in desc:gmatch("Cost:? +(%d*)x? *([^\n]+)") do
+	for num,item in desc:gmatch("[Cc]ost:? +(%d*)x? *([^\n]+)") do
 		num = tonumber(num) or 1
 		if item then
 			hasCost = true
@@ -402,16 +494,31 @@ function registerItem( obj, appendName )
 	end
 	
 	local req = {}
-	for foundReq in desc:gmatch("Requires?:? *([^\n]+)") do
+	for foundReq in desc:gmatch("[Rr]equires?:? *([^\n]+)") do
 		table.insert(req, foundReq)
 	end
 	if #req==0 then
 		req = nil
 	end
 	
+	local spawnAs = ""
+	for foundName in desc:gmatch("[Ss]pawn[Aa]s?:? *([^\n]+)") do
+		spawnAs = foundName
+		break
+	end
+	if #spawnAs==0 then
+		spawnAs = nil
+	end
+	
+	local limit = nil
+	for foundLimit in desc:gmatch("[Ll]imit:? *(%d+)") do
+		limit = tonumber(foundLimit) or 0
+		break
+	end
+	
 	local workingDir = TradeItems
 	
-	local cat = desc:match("Category:? *([^\n]+)")
+	local cat = desc:match("[Cc]ategory:? *([^\n]+)")
 	if cat then
 		local exploded = {}
 		
@@ -456,9 +563,11 @@ function registerItem( obj, appendName )
 		cost = cost,
 		
 		req = req,
+		
+		spawnAs = spawnAs,
+		limit = limit,
+		sets = registerSet( obj ),
 	}
-	
-	registerSet( obj )
 end
 function registerSet( obj )
 	local desc = obj.getDescription()
@@ -483,11 +592,15 @@ function registerSet( obj )
 	end
 	if not hasSets then return end -- Not part of a set
 	
+	local inSets = {}
 	for setName,num in pairs(sets) do
 		TradeSets[setName] = TradeSets[setName] or {}
 		
 		TradeSets[setName][name] = num
+		table.insert(inSets, setName)
 	end
+	
+	return inSets
 end
 
 
