@@ -3455,7 +3455,7 @@ function processPayout(zone, iterations, lockedOnly)
 					local playerList = getSeatedPlayers()
 					for _, col in ipairs(playerList) do
 						local targetSet = findObjectSetFromColor(col)
-						if Player[col].seated and targetSet then
+						if Player[col].seated and Player[col].steam_id==betID and targetSet then
 							foundPly = true
 							for i=1, iterations do
 								delayedCallback('payBet', {set=targetSet, bet=clone, final=(i==iterations)}, (i/10))
