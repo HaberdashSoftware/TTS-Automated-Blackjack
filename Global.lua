@@ -2190,7 +2190,7 @@ function findCardsInZone(zone)
 	local zoneObjectList = zone.getObjects()
 	local foundCards = {}
 	for i, object in ipairs(zoneObjectList) do
-		if object.tag == "Card" then
+		if object.tag == "Card" and obj.getLock() then
 			table.insert(foundCards, object)
 		end
 	end
@@ -2202,14 +2202,14 @@ function findDecksInZone(zone)
 	local zoneObjectList = zone.getObjects()
 	local foundDecks = {}
 	for i, object in ipairs(zoneObjectList) do
-		if object.tag == "Deck" then
+		if object.tag == "Deck" and obj.getLock() then
 			table.insert(foundDecks, object)
 		end
 	end
 	return foundDecks
 end
 
---Returns any decks in a scripting zone (zone)
+--Returns any powerups in a scripting zone (zone)
 function findFigurinesInZone(zone)
 	local zoneObjectList = zone.getObjects()
 	local foundFigurines = {}
@@ -2221,7 +2221,7 @@ function findFigurinesInZone(zone)
 	return foundFigurines
 end
 
---Returns any decks in a scripting zone (zone)
+--Returns any bettable objects in a scripting zone (zone)
 function findBetsInZone(zone)
 	local zoneObjectList = zone.getObjects()
 	local foundChips = {}
