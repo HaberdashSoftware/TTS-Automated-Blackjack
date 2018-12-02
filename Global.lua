@@ -2141,7 +2141,20 @@ function placeCard(pos, flipBool, set, isStarter)
 		newDeck()
 	end
 	
-	lastCard = mainDeck.takeObject({position=pos, flip=flipBool, callback="cardPlacedCallback", callback_owner=Global, params={targetPos=pos, flip=flipBool, set=set, isStarter=isStarter}})
+	-- Small adjustment should fix clientside issues with position/rotation
+	local targetPos = pos
+	if pos.y then
+		targetPos = {x=pos.x, y=pos.y, z=pos.z}
+		pos.y = pos.y-0.1
+	elseif pos[2] then
+		targetPos = {pos[1], pos[2], pos[3]}
+		pos[2] = pos[2]-0.1
+	end
+	
+	-- lastCard = mainDeck.takeObject({position=pos, flip=flipBool, callback="cardPlacedCallback", callback_owner=Global, params={targetPos=pos, flip=flipBool, set=set, isStarter=isStarter}})
+	lastCard = mainDeck.takeObject({position=pos, flip=flipBool, callback_function=function(o)
+		cardPlacedCallback(o, {targetPos=targetPos, flip=flipBool, set=set, isStarter=isStarter}})
+	end)
 end
 
 
