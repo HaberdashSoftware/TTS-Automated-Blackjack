@@ -2049,9 +2049,9 @@ function dealDealer(whichCard)
 	for i, v in ipairs(whichCard or {}) do
 		local pos = findCardPlacement(objectSets[1].zone, v)
 		if v ~= 2 or (bonusShouldDealerReveal()) then
-			placeCard(pos, true, objectSets[1], v<=2)
+			placeCard(pos, true, objectSets[1], v<=2, true)
 		else
-			placeCard(pos, false, objectSets[1], v<=2)
+			placeCard(pos, false, objectSets[1], v<=2, true)
 		end
 	end
 end
@@ -2135,8 +2135,10 @@ function cardPlacedCallback(obj, data)
 	else
 		obj.setTable("blackjack_playerSet", nil)
 	end
+	
+	findCardsToCount()
 end
-function placeCard(pos, flipBool, set, isStarter)
+function placeCard(pos, flipBool, set, isStarter, fastDraw)
 	if (not mainDeck) or (mainDeck==nil) or mainDeck.getQuantity()<40 then
 		newDeck()
 	end
@@ -2154,7 +2156,16 @@ function placeCard(pos, flipBool, set, isStarter)
 	-- lastCard = mainDeck.takeObject({position=pos, flip=flipBool, callback="cardPlacedCallback", callback_owner=Global, params={targetPos=pos, flip=flipBool, set=set, isStarter=isStarter}})
 	lastCard = mainDeck.takeObject({position=pos, flip=flipBool, callback_function=function(o)
 		cardPlacedCallback(o, {targetPos=targetPos, flip=flipBool, set=set, isStarter=isStarter})
-	end})
+	end, smooth = (not fastDraw)})
+	
+	if fastDraw then
+		lastCard.setLock(true)
+		lastCard.setPosition(targetPos)
+		
+		local rot = lastCard.getRotation()
+		rot.z = flipBool and 0 or 180
+		lastCard.setRotation(rot)
+	end
 end
 
 
@@ -2340,7 +2351,7 @@ function hitCard(handler, color)
 		local cardsInZone = #findCardsInZone(zone)
 		local decksInZone = #findDecksInZone(zone)
 		local pos = findCardPlacement(zone, cardsInZone + decksInZone + 1)
-		placeCard(pos, true, set, cardsInZone<2 and decksInZone==0)
+		placeCard(pos, true, set, cardsInZone<2 and decksInZone==0, set.color=="Dealer")
 	end
 end
 
