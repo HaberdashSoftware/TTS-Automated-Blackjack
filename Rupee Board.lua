@@ -13,12 +13,12 @@ for i=1,#powerupsTable do
 		end
 	end
 end
-	
+
+PendingDesc = nil
 buttons = {}
 
 -- Initialization
 function onLoad(state)
-	-- guid isn't unique onLoad. For some reason. Thanks again, TTS devs, you really make life easy for us!
 	nextUpdate = os.time() + 2
 	
 	buttons = {}
@@ -45,6 +45,10 @@ end
 
 local function ProcessQueue()
 	if os.time()<nextUpdate then return end
+	
+	if PendingDesc then
+		self.setDescription( PendingDesc )
+	end
 	
 	while #deployQueueData>0 do
 		nextUpdate = nextUpdate+0.1
@@ -90,9 +94,22 @@ function countPowerups()
 			
 			drawn.destruct()
 		else
-			drawn.setPosition(getDeployPosition(drawn))
-			drawn.setLock(false)
-			drawn.interactable = true
+			if drawn.getName()==self.getName() then
+				local pwups = JSON.decode(drawn.script_state or "") -- It's too early for obj.getTable(), script hasn't loaded
+				if pwups then
+					for k,v in pairs(pwups) do
+						if numPowerups[k] then
+							numPowerups[k] = numPowerups[k] + math.max( v or 0, 0 )
+						end
+					end
+				end
+				
+				destroyObject(drawn)
+			else
+				drawn.setPosition(getDeployPosition(drawn))
+				drawn.setLock(false)
+				drawn.interactable = true
+			end
 		end
 	end
 	
@@ -251,8 +268,21 @@ function getDeployPosition(obj)
 end
 
 function onPickUp( col )
-	if col~="Black" and self.getDescription()=="" then
-		self.setDescription(Player[col].steam_id  .." - ".. Player[col].steam_name)
+	if col~="Black" and self.getDescription()=="" and not PendingDesc then
+		PendingDesc = Player[col].steam_id  .." - ".. Player[col].steam_name
+	end
+	
+	local plyID = Player[col].steam_id
+	local boardID = self.getDescription():match("^(%d+) %- .*")
+	
+	if boardID and boardID~=plyID then return end -- Only manage our own boards
+	
+	local holding = Player[col].getHoldingObjects()
+	for i=1,#holding do
+		if holding[i]~=self and holding[i].getLuaScript()==self.getLuaScript() then
+			destroyObject(self)
+			return
+		end
 	end
 end
 
