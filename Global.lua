@@ -2153,8 +2153,8 @@ function placeCard(pos, flipBool, set, isStarter)
 	
 	-- lastCard = mainDeck.takeObject({position=pos, flip=flipBool, callback="cardPlacedCallback", callback_owner=Global, params={targetPos=pos, flip=flipBool, set=set, isStarter=isStarter}})
 	lastCard = mainDeck.takeObject({position=pos, flip=flipBool, callback_function=function(o)
-		cardPlacedCallback(o, {targetPos=targetPos, flip=flipBool, set=set, isStarter=isStarter}})
-	end)
+		cardPlacedCallback(o, {targetPos=targetPos, flip=flipBool, set=set, isStarter=isStarter})
+	end})
 end
 
 
@@ -2203,7 +2203,7 @@ function findCardsInZone(zone)
 	local zoneObjectList = zone.getObjects()
 	local foundCards = {}
 	for i, object in ipairs(zoneObjectList) do
-		if object.tag == "Card" and obj.getLock() then
+		if object.tag == "Card" and object.getLock() then
 			table.insert(foundCards, object)
 		end
 	end
@@ -2215,7 +2215,7 @@ function findDecksInZone(zone)
 	local zoneObjectList = zone.getObjects()
 	local foundDecks = {}
 	for i, object in ipairs(zoneObjectList) do
-		if object.tag == "Deck" and obj.getLock() then
+		if object.tag == "Deck" and object.getLock() then
 			table.insert(foundDecks, object)
 		end
 	end
