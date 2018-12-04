@@ -8,7 +8,7 @@ local powerupsTable = {
 	{"Activate Bonus Round Timer","New bonus round","Copy a random player's hand","Swap hands with a random player","Save all other players","Discard the last drawn card"},
 	{"Refresh","Random Subtract","View the next card","Minigame","Chaos","Mugging"},
 	{"Give a card","Bump","Swap All","Swap Powerups","Royal token","Reward token"},
-	{"Collectable token", "Random rupee pull"},
+	{"Random rupee pull"},
 }
 local numPowerups = {}
 for i=1,#powerupsTable do
@@ -89,6 +89,45 @@ function onObjectEnterContainer(bag,o)
 	Timer.destroy("PowerupBoardRefresh_"..tostring(self.guid))
 end
 
+function GetZoneID( searchID )
+	local ownerID = string.match(self.getDescription(), "^(%d+) %- .*")
+	local otherID = string.match(searchID, "^(%d+) %- .*")
+	
+	if not otherID then return false end
+	
+	local seated = getSeatedPlayers()
+	for i=1,#seated do
+		seated[ seated[i] ] = true
+		seated[i] = nil
+	end
+	
+	local objectSets = Global.getTable("objectSets")
+	if not objectSets then return false end
+	
+	local foundID = false
+	for i=1,#objectSets do
+		local set = objectSets[i]
+		if set and seated[set.color] then
+			for _,v in pairs({"zone","tbl","prestige"}) do
+				for _,obj in pairs(set[v].getObjects()) do
+					if obj==self then
+						if Player[set.color].steam_id==ownerID then  -- If there's an overlap, we prioritise our own zone
+							return false
+						end
+						
+						if Player[set.color].steam_id==otherID then
+							foundID = true
+							break
+						end
+					end
+				end
+			end
+		end
+	end
+	
+	return foundID
+end
+
 -- Buttons
 function countPowerups()
 	local objects = self.getObjects()
@@ -116,9 +155,11 @@ function countPowerups()
 				end
 				
 				local drawnDesc = drawn.getDescription()
-				if drawnDesc~=self.getDescription() and self.held_by_color and self.held_by_color~="Black" then
-					self.setDescription(drawnDesc)
-					self.translate({0,0.1,0})
+				if drawnDesc~=self.getDescription() then
+					if (self.held_by_color and self.held_by_color~="Black") or GetZoneID(drawnDesc) then
+						self.setDescription(drawnDesc)
+						self.translate({0,0.1,0})
+					end
 				end
 				
 				destroyObject(drawn)
@@ -257,7 +298,7 @@ end
 function deployQueue(name, col)
 	if not name then return end
 	if col and not Player[col].admin then
-		local id = string.match(self.getDescription(), "(76561%d+)")
+		local id = string.match(self.getDescription(), "^(%d+) %- .*")
 		
 		if id and Player[col].steam_id~=id then
 			Player[col].print("This isn't yours!", {r=1,g=0,b=0})
