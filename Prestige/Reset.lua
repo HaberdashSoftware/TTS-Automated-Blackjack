@@ -3,9 +3,11 @@ PrestigeChip = "$100 Tretrigintillion"
 PrestigeLevel = 9 -- Change this to one more than your highest prestige
 
 NewPlayerGem = nil
+DisplaySetup = false
 
 PrestigePlayers = {}
 OrderedPlayers = {}
+TotalRollovers = 0
 
 
 -- Save/Load --
@@ -92,7 +94,7 @@ function doPrestige(data)
 	printToAll("Prestige: " .. col .. " has completed a prestige rollover!", {0.5,1,0.5})
 	
 	-- Prestige Gem
-	local newGem,rolloverAward
+	local newGem,rolloverTrophy
 	if NewPlayerGem and not (NewPlayerGem==nil) then
 		newGem = NewPlayerGem.takeObject({position=data.set.prestige.getPosition()})
 		newGem.setLuaScript("")
@@ -108,24 +110,47 @@ function doPrestige(data)
 	end
 	
 	if rolloverObject and not (rolloverObject==nil) then
-		rolloverAward = rolloverObject
-		rolloverAward.setLuaScript(RolloverObjScript:format(rolloverCount+1))
-		rolloverAward.setVar("PrestigeRolloverLevel", rolloverCount+1)
+		rolloverTrophy = rolloverObject
+		rolloverTrophy.setLuaScript(RolloverObjScript:format(rolloverCount+1))
+		rolloverTrophy.setVar("PrestigeRolloverLevel", rolloverCount+1)
 	else
-		rolloverAward = self.clone({position=data.set.zone.getPosition()})
-		rolloverAward.setLock(false)
-		rolloverAward.setLuaScript(RolloverObjScript:format(rolloverCount+1))
-		rolloverAward.interactable = true
-		rolloverAward.setName(RolloverObjectData.name)
-		rolloverAward.setDescription(RolloverObjectData.desc)
+		rolloverTrophy = self.clone({position=data.set.zone.getPosition()})
+		rolloverTrophy.setLock(false)
+		rolloverTrophy.setLuaScript(RolloverObjScript:format(rolloverCount+1))
+		rolloverTrophy.interactable = true
+		rolloverTrophy.setName(RolloverObjectData.name)
+		rolloverTrophy.setDescription(RolloverObjectData.desc)
 	end
 	
-	if rolloverAward.getVar("createDisplay") then
-		rolloverAward.call("createDisplay")
+    local rolloverReward = getObjectFromGUID("cbb2c4")
+	if rolloverReward then
+        local params = {}
+        params.position = data.set.zone.positionToWorld({0.5,-0.4,-0.5})
+        params.smooth = false
+		
+        local newObj = rolloverReward.takeObject(params)
+		if newObj then
+			if newObj.tag=="Bag" then
+				local dailyObjects = newObj.getObjects()
+				for i, object in ipairs(dailyObjects) do
+					params.position.y = params.position.y + 0.5
+					local taken = newObj.takeObject(params)
+					taken.setDescription( ("%s - %s"):format(Player[col].steam_id, Player[col].steam_name) )
+				end
+				
+				destroyObject(newObj)
+			else
+				newObj.setDescription( ("%s - %s"):format(Player[col].steam_id, Player[col].steam_name) )
+			end
+		end
+	end
+	
+	if rolloverTrophy.getVar("createDisplay") then
+		rolloverTrophy.call("createDisplay")
 	end
 	
 	newGem.setDescription( ("%s - %s\n\n%s"):format(plyData.steam_id, plyData.steam_name, newGem.getDescription()) )
-	rolloverAward.setDescription( ("%s - %s"):format(plyData.steam_id, plyData.steam_name) )
+	rolloverTrophy.setDescription( ("%s - %s"):format(plyData.steam_id, plyData.steam_name) )
 	
 	PrestigePlayers[plyData.steam_id].level = rolloverCount + 1
 	
@@ -184,9 +209,11 @@ end
 
 function generateOrder()
 	OrderedPlayers = {}
+	TotalRollovers = 0
 	
 	for id,data in pairs(PrestigePlayers) do
 		table.insert( OrderedPlayers, {id=id, name=data.name, level=data.level} )
+		TotalRollovers = TotalRollovers + (math.max(data.level or 0, 0))
 	end
 	
 	table.sort(OrderedPlayers, function(a,b)
@@ -198,12 +225,19 @@ function generateOrder()
 		end
 		return a.level<b.level
 	end)
+	
+	if DisplaySetup then
+		self.editButton({ index = 2, label= TotalRollovers })
+		self.editButton({ index = 3, label= TotalRollovers })
+	end
 end
 
 
 -- Display and Buttons --
 -------------------------
 function createDisplay()
+	DisplaySetup = true
+	
 	self.clearButtons()
 	self.clearInputs()
 	
@@ -219,12 +253,12 @@ function createDisplay()
 	})
 	
 	self.createButton({
-		label="*", click_function="doNull", function_owner=self,
+		label=TotalRollovers, click_function="doNull", function_owner=self,
 		position={0,1.14,0.33}, rotation={-90,0,0}, width=0, height=0, font_size=110,
 		font_color = {r=1,g=1,b=1},
 	})
 	self.createButton({
-		label="*", click_function="doNull", function_owner=self,
+		label=TotalRollovers, click_function="doNull", function_owner=self,
 		position={0,1.14,-0.33}, rotation={90,0,180}, width=0, height=0, font_size=110,
 		font_color = {r=1,g=1,b=1},
 	})
