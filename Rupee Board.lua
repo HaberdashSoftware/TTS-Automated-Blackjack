@@ -48,6 +48,7 @@ local function ProcessQueue()
 	
 	if PendingDesc then
 		self.setDescription( PendingDesc )
+		PendingDesc = nil
 	end
 	
 	while #deployQueueData>0 do
@@ -73,6 +74,10 @@ function onUpdate()
 end
 
 function onObjectEnterContainer(bag,o)
+	if bag==self then
+		countPowerups()
+		return
+	end
 	if o~=self then return end
 	
 	Timer.destroy("PowerupBoardRefresh_"..tostring(self.guid))
@@ -102,6 +107,12 @@ function countPowerups()
 							numPowerups[k] = numPowerups[k] + math.max( v or 0, 0 )
 						end
 					end
+				end
+				
+				local drawnDesc = drawn.getDescription()
+				if drawnDesc~=self.getDescription() and self.held_by_color and self.held_by_color~="Black" then
+					self.setDescription(drawnDesc)
+					self.translate({0,0.1,0})
 				end
 				
 				destroyObject(drawn)
