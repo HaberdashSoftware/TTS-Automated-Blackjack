@@ -40,8 +40,12 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 		
 		if d.setUser.color~=d.setTarget.color and d.setUser.color~=d.setTarget.UserColor then
 			local newVal = d.setTarget.value + cVal
-			if newVal<=21 and (not (d.setTarget.value>=68 and d.setTarget.value<=72)) and newVal>dlr and dlr<=21 and d.setTarget.value<=dlr then
+			if newVal>=68 and newVal<=72 and d.setTarget.count<4 then -- Special hand
 				Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} )
+			elseif newVal<=21 and (not (d.setTarget.value>=68 and d.setTarget.value<=72)) and newVal>dlr and dlr<=21 and d.setTarget.value<=dlr then
+				Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} )
+			elseif d.setTarget.count==4 and (dlr<=21 or dlr==69) and (d.setTarget.value<dlr or (d.setTarget.value>21 and (d.setTarget.value<68 or d.setTarget.value>72))) then
+				Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} ) -- Loss to 5-card bust
 			end
 		end
 		

@@ -11,7 +11,7 @@ function powerupUsed( d )
 	end
 	
 	if d.setTarget.color=="Dealer" then
-		if d.setTarget.count==4 and (d.setTarget.value<=21 or (d.setTarget.value>=68 and d.setTarget.value<=72)) then
+		if d.setTarget.value==69 or (d.setTarget.count==4 and d.setTarget.value<=21) then
 			local settings = Global.getTable("hostSettings")
 			local MultiHelp = settings.bMultiHelpRewards and (settings.bMultiHelpRewards.getDescription()=="true")
 			
@@ -23,8 +23,15 @@ function powerupUsed( d )
 					local decks = Global.call( "forwardFunction", {function_name="findDecksInZone", data={target.zone}} ) or {}  for i=1,#decks do table.insert(cardsInZone, decks[i]) end
 					
 					if #cardsInZone ~= 0 and target.value<d.setTarget.value then
-						Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} )
-						if not MultiHelp then break end
+						if d.setTarget.value==69 then -- Dealer blackjack
+							if target.value<=21 or (target.value>=69 and target.value<=72) then -- All winning hands (except joker) are helped
+								Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} )
+								if not MultiHelp then break end
+							end
+						elseif target.value<=21 and target.value<=d.setTarget.value then -- Was losing/pushed, now winning
+							Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} )
+							if not MultiHelp then break end
+						end
 					end
 				end
 			end

@@ -3184,14 +3184,14 @@ function playerStand(btnHandler, color)
 			return broadcastToColor("Error: It's not your turn.", color, {1,0.25,0.25})
 		end
 		
-		if not lockout then
+		if color=="Black" or not lockout then
 			endTurnTimer(set, true)
 			clearPlayerActions(set.zone)
 			lockoutTimer(0.5)
 			
 			delayedCallback('delayedPassPlayerActions', {zone=set.zone, color=set.color}, 0.25)
 			
-			RunBonusFunc( "onPlayerHit", {set=set, color=color} )
+			RunBonusFunc( "onPlayerStand", {set=set, color=color} )
 		else
 			broadcastToColor("Error: Button delay is active.\nWait a moment then try again.", color, {1,0.25,0.25})
 		end

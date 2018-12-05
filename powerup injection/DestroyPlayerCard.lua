@@ -38,8 +38,8 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 		
 		if d.setUser.color~=d.setTarget.color and d.setUser.color~=d.setTarget.UserColor then
 			local newVal = d.setTarget.value - (cVal or 0)
-			if d.setTarget.value~=newVal and d.setTarget.value>21 and (not (d.setTarget.value>=68 and d.setTarget.value<=72)) and newVal<=21 and newVal>dlr then
-				Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} )
+			if d.setTarget.value~=newVal and d.setTarget.value>21 and (not (d.setTarget.value>=68 and d.setTarget.value<=72)) and newVal<=21 and (newVal>=dlr or (dlr>21 and dealer~=69)) then
+				Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} ) -- From bust to win/push
 			end
 		end
 		destroyObject(d.powerup)

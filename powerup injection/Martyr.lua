@@ -10,7 +10,7 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 	end
 	
 	local dlr = sets[1].value
-	if #cardsInZone ~= 0 and (d.setTarget.value<=21 and (d.setTarget.value>=dlr or (dlr>21 and dlr~=69)) or (d.setTarget.value>=68 and d.setTarget.value<=72)) then
+	if #cardsInZone ~= 0 and ((d.setTarget.value>=68 and d.setTarget.value<=72) or (d.setTarget.value<=21 and (d.setTarget.value>=dlr or (dlr>21 and dlr~=69)))) then
 		local blackjackCount = #cardsInZone
 		
 		Global.call( "forwardFunction", {function_name="clearBets", data={d.setTarget.zone, true}} )
@@ -43,7 +43,7 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 			blackjackCount = blackjackCount-1
 			table.remove(foundPlayers, chosen)
 			
-			if set.UserColor~=d.setUser.color and (dlr<=21 and dlr>=set.value) then
+			if set.UserColor~=d.setUser.color and (set.value>21 or ((dlr<=21 or dlr==69) and dlr>=set.value and set.value~=68)) and (set.value<68 or set.value>72) then
 				if MultiHelp then
 					Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} )
 				end
