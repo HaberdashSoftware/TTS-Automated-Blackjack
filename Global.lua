@@ -1529,7 +1529,7 @@ function addCardValues(hand, cardNames, facedownCount, facedownCard)
 			end
 		end
 	end
-	if value>31 and not (stopCount or objectSets[hand].count==1) then value=100 end
+	if value>50 and not (stopCount or objectSets[hand].count==1) then value=100 end
 	
 	displayResult(hand, value, soft)
 	--Checks for blackjack
@@ -1576,15 +1576,35 @@ function displayResult(hand, value, soft)
 	end
 	if soft then valueLabel=SoftHandDisplay[valueLabel] or valueLabel end
 	
-	local dlr = objectSets[1].value
 	objectSets[hand].btnHandler.editButton({
 		index=0, label=valueLabel,
-		color = ((objectSets[hand].color=="Dealer" or value==0) and displayCol.Clear) or
-		   (objectSets[hand].count<5 and value>21 and (value<67 or value>72) and displayCol.Bust) or
-		   ((value==dlr or (objectSets[hand].count>=5 and ((value<dlr and (dlr<=21 or (dlr>=68 and dlr<=72))) or (value>21 and (value<67 or value>72))))) and displayCol.Safe) or
-		   (value<dlr and (dlr<=21 or dlr==69) and displayCol.Lose) or
-		   (displayCol.Win)
+		color = getHandDisplayColor(objectSets[hand]),
 	})
+end
+
+function getHandDisplayColor(set)
+	local val = set.value
+	if set.color=="Dealer" or val==0 then return displayCol.Clear end -- Dealer or not in play
+	
+	if val==68 or val==71 then return displayCol.Win end -- Joker always wins
+	if val>21 and (val<68 or val>72) then -- Bust
+		return (set.count>=5 and displayCol.Safe) or displayCol.Bust
+	end
+	
+	local dealerValue = objectSets[1].value
+	if dealerValue==69 then -- Dealer blackjack
+		return ((val==69 or set.count>=5) and displayCol.Safe) or displayCol.Lose
+	end
+	
+	if dealerValue<=21 then -- Dealer not bust
+		if dealerValue==val then -- Push
+			return displayCol.Safe
+		elseif dealerValue>val then -- Lose
+			return (set.count>=5 and displayCol.Safe) or displayCol.Lose
+		end
+	end
+	
+	return displayCol.Win
 end
 
 --Guess what THIS does.
@@ -3278,10 +3298,10 @@ function payButtonPressed(o, color)
 				local value = set.value
 				local count = set.count
 				if i ~= 1 and value ~= 0 and count ~= 0 then
-					if value <= 21 and (value > dealerValue or dealerValue > 21 and dealerValue < 69) or (value > 67 and value < 72) then
+					if value<=21 and (value>dealerValue or dealerValue>21 and dealerValue~=69) or (value>=69 and value<=72 and dealerValue~=69) or (value==68 or value==71) then
 						local betsInZone = #findBetsInZone(set.zone)
 						if betsInZone ~= 0 then processPayout(set.zone, calculatePayout(set.zone), true) end
-					elseif (dealerValue <= 21 and value == dealerValue) or count >= 5 then
+					elseif ((dealerValue<=21 or dealerValue==69) and value == dealerValue) or count >= 5 or (value>=68 and value<=72) then
 						-- Unlock Chips
 						local zoneObjectList = set.zone.getObjects()
 						for j, bet in ipairs(zoneObjectList) do
