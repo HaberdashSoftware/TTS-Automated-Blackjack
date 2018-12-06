@@ -110,17 +110,19 @@ function spawnObject( item, c, spawnAs )
 	clone.setPosition(params.position)
 	clone.setDescription( ourColor and ("%s - %s"):format( Player[c].steam_id, Player[c].steam_name) or "" )
 	
-	if spawnAs then
-		Wait.frames(function()
-			if spawnAs and ourColor and Player[c].seated and clone and not (clone==nil) then
-				clone.reset()
-				
-				local newStr = os.date(spawnAs, os.time()):gsub("{name}", Player[c].steam_name):gsub("{id}", Player[c].steam_id):gsub("{color}", c)
-				
-				clone.setName( newStr )
-			end
-		end, 0)
-	end
+	Wait.frames(function()
+		if (not clone) or clone==nil then return end
+		
+		if clone.tag=="Bag" then
+			clone.reset()
+		end
+		
+		if spawnAs and ourColor and Player[c].seated then
+			local newStr = os.date(spawnAs, os.time()):gsub("{name}", Player[c].steam_name):gsub("{id}", Player[c].steam_id):gsub("{color}", c)
+			
+			clone.setName( newStr )
+		end
+	end, 0)
 end
 function buyItem( data, c )
 	if not data.item then
@@ -150,7 +152,7 @@ function buyItem( data, c )
 				end
 				for _,zone in pairs({zoneObjects, tableObjects, prestigeObjects}) do
 					for _, obj in ipairs(zone) do
-						req[obj.getName()] = nil
+						req[obj.getName():match("^%s*(.-)%s*$") or obj.getName() ] = nil
 					end
 				end
 				
@@ -182,13 +184,18 @@ function processCostAll( c, data, set )
 	local missingCost = TranslateSetsToItems( CopyTable(costData) )
 	local foundStacks = {}
 	
-	local zoneObjects = set.zone.getObjects()
-	local tableObjects = set.tbl.getObjects()
-	local prestigeObjects = set.prestige.getObjects()
+	local sort = function(a,b)
+		return self.positionToLocal(a.getPosition()).z > self.positionToLocal(b.getPosition()).z
+	end
+	local zoneObjects = set.zone.getObjects()  table.sort(zoneObjects, sort)
+	local tableObjects = set.tbl.getObjects()  table.sort(tableObjects, sort)
+	local prestigeObjects = set.prestige.getObjects()  table.sort(prestigeObjects, sort)
 	
 	for _,zone in pairs({zoneObjects, tableObjects, prestigeObjects}) do
-		for j, item in ipairs(zone) do
-			local name = item.getName()
+		-- for j, item in ipairs(zone) do
+		for i=1,#zone do
+			local item = zone[i]
+			local name = item.getName():match("^%s*(.-)%s*$") or item.getName()
 			if missingCost[name] and missingCost[name]>0 and item.interactable and not (item.getLock()) then
 				local count = item.getQuantity()
 				if count==-1 then count = 1 end
@@ -214,8 +221,8 @@ function processCostAll( c, data, set )
 		end
 	end
 	
-	for missing in pairs(missingCost) do -- Should only run if there's values left
-		broadcastToColor( ("You don't have enough %s on your table to buy this item."):format(tostring(missing)), c, {1,0.2,0.2} )
+	for missing,cost in pairs(missingCost) do -- Should only run if there's values left
+		broadcastToColor( ("You need %i more %s on your table to buy this item."):format(tonumber(cost) or 0, tostring(missing)), c, {1,0.2,0.2} )
 		return false
 	end
 	
@@ -274,14 +281,20 @@ function processCostAny( c, data, set )
 	
 	local foundStacks
 	
-	local zoneObjects = set.zone.getObjects()
-	local tableObjects = set.tbl.getObjects()
-	local prestigeObjects = set.prestige.getObjects()
+	local sort = function(a,b)
+		return self.positionToLocal(a.getPosition()).z > self.positionToLocal(b.getPosition()).z
+	end
+	
+	local zoneObjects = set.zone.getObjects()  table.sort(zoneObjects, sort)
+	local tableObjects = set.tbl.getObjects()  table.sort(tableObjects, sort)
+	local prestigeObjects = set.prestige.getObjects()  table.sort(prestigeObjects, sort)
 	local done = false
 	
 	for _,zone in pairs({zoneObjects, tableObjects, prestigeObjects}) do
-		for j, item in ipairs(zone) do
-			local name = item.getName()
+		-- for j, item in ipairs(zone) do
+		for i=1,#zone do
+			local item = zone[i]
+			local name = item.getName():match("^%s*(.-)%s*$") or item.getName()
 			
 			for i=1,#missingFromSets do
 				local missingCost = missingFromSets[i]
@@ -471,6 +484,8 @@ function registerItem( obj, appendName )
 	local CostType = COST_ALL
 	local hasCost = false
 	for foundType in desc:gmatch("[Cc]ost[Tt]ype:? *([^\n]+)") do
+		foundType = foundType:match("^%s*(.-)%s*$") or foundType
+		
 		CostType = TextToCostType[ foundType:lower() ] or CostType
 	end
 	
@@ -480,6 +495,7 @@ function registerItem( obj, appendName )
 		num = tonumber(num) or 1
 		if item then
 			hasCost = true
+			item = item:match("^%s*(.-)%s*$") or item
 			
 			if CostType==COST_ALL then
 				cost[item] = (cost[item] or 0) + num
@@ -495,6 +511,7 @@ function registerItem( obj, appendName )
 	
 	local req = {}
 	for foundReq in desc:gmatch("[Rr]equires?:? *([^\n]+)") do
+		foundReq = foundReq:match("^%s*(.-)%s*$") or foundReq
 		table.insert(req, foundReq)
 	end
 	if #req==0 then
@@ -503,7 +520,7 @@ function registerItem( obj, appendName )
 	
 	local spawnAs = ""
 	for foundName in desc:gmatch("[Ss]pawn[Aa]s?:? *([^\n]+)") do
-		spawnAs = foundName
+		spawnAs = foundName:match("^%s*(.-)%s*$") or foundName
 		break
 	end
 	if #spawnAs==0 then
@@ -893,11 +910,11 @@ function PrintTable( tbl, indent, skipTables )
 	for k,v in pairs(tbl) do
 		if type(v)=="table" and not skipTables[v] then
 			skipTables[v]=true
-			print( (" "):rep(indent+1), k, " = {" )
+			print( (" "):rep(indent+1), "\"",k,"\" = {" )
 			PrintTable(v, indent+1, skipTables)
 			print( (" "):rep(indent+1), "}" )
 		else
-			print( (" "):rep(indent+1), k, " = ", v )
+			print( (" "):rep(indent+1), "\"", k, "\" = ", v )
 		end
 	end
 end
