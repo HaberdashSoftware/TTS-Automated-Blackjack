@@ -167,6 +167,12 @@ function countPowerups()
 				drawn.setPosition(getDeployPosition(drawn))
 				drawn.setLock(false)
 				drawn.interactable = true
+				
+				Wait.frames(function()
+					if drawn and not (drawn==nil) then
+						drawn.setPosition(getDeployPosition(drawn))
+					end
+				end, 0)
 			end
 		end
 	end
@@ -318,10 +324,10 @@ function getDeployPosition(obj)
 		local zMod = math.max(objBounds.size.z, 1) * objScale.z
 		
 		local scale = self.getScale()
-		return self.positionToWorld( {0,1,-5 - (1/scale.z) - zMod} )
+		return self.positionToWorld({ 0, 1.5+scale.y, ((-1)/scale.z)-5 -(1.5*zMod) })
 	else
 		local scale = self.getScale()
-		return self.positionToWorld( {0,1,-5 - (1/scale.z)} )
+		return self.positionToWorld({ 0, 1.5+scale.y,  ((-1)/scale.z)-5 })
 	end
 end
 
