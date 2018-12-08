@@ -2023,8 +2023,8 @@ function clearBets(zoneToClear, lockedOnly)
 	
 	for i, object in ipairs(objectsInZone) do
 		if ((object.tag == "Chip" and not powerupEffectTable[object.getName()]) or (object.tag == "Bag" and object.getName():sub(1,11)~="Player save")) and not (lockedOnly and object.interactable) then
-			if (lockedOnly and object.tag == "Bag") then -- Remove anything that shouldn't be here
-				local goodIDs = object.getTable("Blackjack_BetBagContents")
+			if object.tag == "Bag" then -- Remove anything that shouldn't be here
+				local goodIDs = object.getTable("Blackjack_BetBagContents") or {}
 				local contents = object.getObjects()
 				
 				-----
@@ -2033,20 +2033,23 @@ function clearBets(zoneToClear, lockedOnly)
 				params.position.y = params.position.y + 0.25
 				
 				for i=1,#contents do
-					if (not goodIDs[contents[i].guid]) or goodIDs[contents[i].guid]<=0 then
+					if lockedOnly and (not goodIDs[contents[i].guid]) or goodIDs[contents[i].guid]<=0 then
 						local taken = object.takeObject(params)
-						
-						params.position.y = math.min(params.position.y + 0.5, 20)
 						set.container.putObject(taken)
 						
 						badBagObjects = badBagObjects + 1
+					else
+						local taken = object.takeObject(params)
+						destroyObject(taken)
+						
+						goodIDs[contents[i].guid] = (goodIDs[contents[i].guid] or 0) - 1
 					end
-					goodIDs[contents[i].guid] = (goodIDs[contents[i].guid] or 0) - 1
+					params.position.y = math.min(params.position.y + 0.5, 20)
 				end
 				-----
+			else
+				destroyObject(object)
 			end
-			
-			destroyObject(object)
 		end
 	end
 	
