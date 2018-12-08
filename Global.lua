@@ -1785,6 +1785,17 @@ function bonusRound()
 end
 
 function activateBonus( obj )
+	local inTable = false
+	for i=1,#bonusObjects do
+		if bonusObjects[i]==obj then
+			inTable = true
+			break
+		end
+	end
+	if not inTable then
+		table.insert( bonusObjects, obj )
+	end
+	
 	obj.lock()
 	
 	if obj.getVar("onDeploy") then

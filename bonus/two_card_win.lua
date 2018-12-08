@@ -1,9 +1,22 @@
 
+function onLoad()
+	self.createButton({
+		label="Activate", click_function="bonusRoundActivate", function_owner=self,
+		position={0,0,0}, rotation={0,0,0}, width=450, height=450, font_size=150
+	})
+end
+function bonusRoundActivate(o,c)
+	if c~="Black" and not Player[c].admin then return end
+	if Global.getVar("activateBonus") then Global.Call("forwardFunction", {function_name="activateBonus", data={self}} ) end
+end
+
 bonusDesc = "Earn 3x payout for every hand you win with 2 cards and no active powerups.\n\n"
 
 IsActive = false
 RoundsRemaining = 5
 function onDeploy()
+	self.clearButtons()
+	
 	IsActive = false
 	
 	self.setDescription( bonusDesc.."In effect next hand." )
