@@ -999,7 +999,7 @@ function postRoundEffects( col, zone )
 				printToColor( ("You have taken %i damage at the end of the round."):format(burn), col, {0.7, 0.2, 0.2} )
 			end
 			
-			playingUsers[col].CurHP = playingUsers[col].CurHP - burn
+			playingUsers[col].CurHP = playingUsers[col].CurHP - totalBurn
 		end
 	end
 	if playingUsers[col].CurHP<=0 then
