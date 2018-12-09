@@ -140,6 +140,10 @@ chipList = {
     {name="$10 Tretrigintillion", tierUp=10, GUID="de0f13"},
     {name="$100 Tretrigintillion", tierUp=10, GUID="0a42cc"},
 }
+local chipToIndex = {}
+for i=1,#chipList do
+	chipToIndex[chipList[i].name] = i
+end
 
 --Where the chip stacks are placed, relative to the middle of the zone.
 --All of these spots should fall within the boundries of the scripting zone.
@@ -262,7 +266,8 @@ function locateChipsInZone(zone, color)
     deleteList = {}
 	local plyID = Player[color].steam_id
     for i, object in ipairs(zone.getObjects()) do
-        for j, chip in ipairs(chipList) do
+		local chip = chipToIndex[object.getName()] and chipList[chipToIndex[object.getName()]]
+		if chip then
 			local chipID = object.getDescription():match("^(%d+) %- .*")
             if object.getName() == chip.name and (not (chipID and chipID~=plyID)) then
                 local numberInStack = math.abs(object.getQuantity())
@@ -333,27 +338,27 @@ function determineTradeUpList(chipsInZone)
     while true do
         local conversionList = {}
         local loopEnd = true
-        for i, chip in ipairs(chipList) do
-            for name, chipCount in pairs(listToTradeUp) do
-                if chip.name == name then
-                    if i < #chipList then
-                        --quotient is how many of the next tier of chip to get
-                        local quotient = math.floor(chipCount/chip.tierUp)
-                        --remainder is how many chips can't be converted up (not eenough)
-                        local remainder = chipCount % chip.tierUp
-                        if quotient > 0 then
-                            conversionList = addToConversionList(conversionList, chipList[i+1].name, quotient)
-                            loopEnd = false
-                        end
-                        if remainder > 0 then
-                            conversionList = addToConversionList(conversionList, chipList[i].name, remainder)
-                        end
-                    else
-                        conversionList = addToConversionList(conversionList, chipList[i].name, chipCount)
-                    end
-                end
-            end
-        end
+		for name, chipCount in pairs(listToTradeUp) do
+			local id = chipToIndex[name]
+			local chip = id and chipList[id]
+			if chip then
+				if id < #chipList then
+					--quotient is how many of the next tier of chip to get
+					local quotient = math.floor(chipCount/chip.tierUp)
+					--remainder is how many chips can't be converted up (not eenough)
+					local remainder = chipCount % chip.tierUp
+					if quotient > 0 then
+						conversionList = addToConversionList(conversionList, chipList[id+1].name, quotient)
+						loopEnd = false
+					end
+					if remainder > 0 then
+						conversionList = addToConversionList(conversionList, chipList[id].name, remainder)
+					end
+				else
+					conversionList = addToConversionList(conversionList, chipList[id].name, chipCount)
+				end
+			end
+		end
         --This gets us out of the while loop
         --While loop is to trade up to max value instead of just going up one tier
         if tradeUpToMaxValue == false or loopEnd == true then
@@ -367,17 +372,17 @@ end
 --Determines a finalized list of chips to spawn
 function determineTradeDownList(chipsInZone)
     local conversionList = {}
-    for i, chip in ipairs(chipList) do
-		for name, chipCount in pairs(chipsInZone) do
-			if chip.name == name then
-				if i > 1 then
-					conversionList = addToConversionList(conversionList, chipList[chip.upOnly and i or i-1].name, chip.upOnly and chipCount or chipCount * chipList[i-1].tierUp)
-				else
-					conversionList = addToConversionList(conversionList, chipList[i].name, chipCount)
-				end
+	for name, chipCount in pairs(chipsInZone) do
+		local id = chipToIndex[name]
+		local chip = id and chipList[id]
+		if chip then
+			if id > 1 then
+				conversionList = addToConversionList(conversionList, chipList[chip.upOnly and id or id-1].name, chip.upOnly and chipCount or chipCount * chipList[id-1].tierUp)
+			else
+				conversionList = addToConversionList(conversionList, chipList[id].name, chipCount)
 			end
 		end
-    end
+	end
     return conversionList
 end
 
@@ -447,11 +452,11 @@ end
 
 --Finds the infinite bag matching the chip type
 function findBagFromName(name)
-    for i, chip in ipairs(chipList) do
-        if name == chip.name then
-            return getObjectFromGUID(chip.GUID)
-        end
-    end
+	local id = chipToIndex[name]
+	local chip = id and chipList[id]
+	if chip then
+		return getObjectFromGUID(chip.GUID)
+	end
 end
 
 --Puts chips back into a bag if the return chips button is clicked
