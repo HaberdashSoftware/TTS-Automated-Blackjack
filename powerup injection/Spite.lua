@@ -8,7 +8,7 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 	
 	local cardsInUserZone = Global.call( "forwardFunction", {function_name="findCardsInZone", data={d.setUser.zone}} )
 	local decksInUserZone = Global.call( "forwardFunction", {function_name="findDecksInZone", data={d.setUser.zone}} ) for i=1,#decksInUserZone do table.insert(cardsInUserZone, decksInUserZone[i]) end
-	if #cardsInZone~=0 and #cardsInUserZone~=0 and (d.setTarget.value<=21 or (d.setTarget.value>=68 and d.setTarget.value<=72)) and (d.setTarget.value<=21 or (d.setUser.value>=68 and d.setUser.value<=72)) then
+	if #cardsInZone~=0 and #cardsInUserZone~=0 and (d.setTarget.value<=21 or (d.setTarget.value>=68 and d.setTarget.value<=72)) and (d.setUser.value<=21 or (d.setUser.value>=68 and d.setUser.value<=72)) then
 		if d.setTarget.color~=d.setUser.color and d.setTarget.UserColor~=d.setUser.color then
 			local dealerValue = sets[1].value
 			local v = Global.getTable("cardNameTable")[d.powerup.getName()] or 0
