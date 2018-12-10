@@ -1,5 +1,8 @@
 --[[                  Kieron's Autosave and Retrieval                       ]]--
 
+
+-- Setup --
+-----------
 function onload()
     playerZone = {
         ["Black"] = {zone=getObjectFromGUID("275a5d")},
@@ -23,7 +26,6 @@ function onload()
     populateTable()
     createButtons()
 end
-
 function populateTable()
     local saveObjects = self.getObjects()
     for i, object in ipairs(saveObjects) do
@@ -31,7 +33,11 @@ function populateTable()
     end
 end
 
-function updateSave(object, color)
+
+-- Process Save --
+------------------
+
+function doObjectName(object, color)
     object.setName("Player save: " .. Player[color].steam_name)
     object.setDescription(Player[color].steam_id  .." - ".. Player[color].steam_name)
 end
@@ -117,6 +123,209 @@ function DoAutoSave(data, ...)
 		end
 	end
 end
+
+function save(o, color)
+    if not lockout then
+        lockoutTimer(1.2)
+        local foundObjects = playerZone[color].zone.getObjects()
+        local saveObjects = self.getObjects()
+        local saveFound = false
+        local params = {}
+        params.position = self.getPosition()
+        for i, object in ipairs(foundObjects) do
+            if string.find(object.getName(), 'Player save:') then
+				table.insert(saveQueue, {object, color})
+				saveFound = true
+            end
+        end
+		if saveFound then
+			Timer.destroy("DoSaveQueue")
+			Timer.create({identifier="DoSaveQueue", function_name="DoSaveQueue", delay=0.25, repetitions=0})
+		else
+			broadcastToColor("Error: No save found.\nPlease position your save inside your colored zone.", color, {1,0.25,0.25})
+		end
+    else
+        broadcastToColor("Error: Button delay is active.\nWait a moment then try again.", color, {1,0.25,0.25})
+    end
+end
+
+
+-- Process Dropped Object --
+----------------------------
+
+function onObjectEnterContainer(bag,o)
+	if bag~=self then return end
+	
+	local isSaveFormat = o.getName():match("| %d+ | %d+$")
+	if isSaveFormat then return end -- Proper format, we can assume it's fine (Probably added by script)
+	
+	local saveBox = o.getName():find("Player save:")
+	local foundID = o.getDescription():match("^(%d+) %- .*")
+	if not foundID then return EjectGrabbedObject(o) end -- Not a saveable object (no id) -- TODO: Eject
+	
+	local targetPos = self.getPosition()
+	targetPos.y = targetPos.y + 5
+	targetPos.z = targetPos.z + 5
+	
+	local params = {position = targetPos, smooth = false}
+	
+	local matchingSave
+	for _,box in ipairs(self.getObjects()) do
+		if box.name:find(foundID) then
+			matchingSave = box
+			break
+		end
+	end
+	
+	if matchingSave then
+		-- Place object into found save box
+		params.index = matchingSave.index
+		local deployedBox = self.takeObject(params)
+		if deployedBox then
+			deployedBox.putObject(o)
+			
+			-- Replace save box
+			self.putObject(deployedBox)
+		end
+		
+		-- Destroy object in bag
+		local lastFoundObj
+		for _,obj in ipairs(self.getObjects()) do -- params.guid always starts from the bottom regardless of params.top
+			if obj.guid==o.getGUID() then
+				lastFoundObj = obj
+			end
+		end
+		if lastFoundObj then
+			params.index = lastFoundObj.index
+			local deployedObject = self.takeObject(params)
+			if deployedObject then
+				destroyObject(deployedObject)
+			end
+		end
+		
+		return
+	elseif saveBox and not matchingSave then
+		-- Get obj
+		local lastFoundObj
+		for _,obj in ipairs(self.getObjects()) do
+			if obj.guid==o.getGUID() then
+				lastFoundObj = obj
+			end
+		end
+		if lastFoundObj then
+			params.index = lastFoundObj.index
+			local deployedObject = self.takeObject(params)
+			if deployedObject then
+				-- Rename and replace
+				deployedObject.setName( ("%s | %i | %s"):format(o.getName(), os.time(), foundID) )
+				deployedObject.setDescription("")
+				
+				self.putObject(deployedObject)
+			end
+		end
+		
+		return
+	end
+	
+	EjectGrabbedObject(o)
+end
+function EjectGrabbedObject(o)
+	local lastFoundObj
+	for _,obj in ipairs(self.getObjects()) do -- params.guid always starts from the bottom regardless of params.top
+		if obj.guid==o.getGUID() then
+			lastFoundObj = obj
+		end
+	end
+	
+	local params = {position = {0,10,0}, smooth = false}
+	if lastFoundObj then
+		params.index = lastFoundObj.index
+		local deployedObject = self.takeObject(params)
+		
+		if deployedObject then
+			local id,name = o.getDescription():match("^(%d+) %- ([^\n]*)")
+			if Player["Black"].seated then
+				broadcastToColor( ("Save Storage: Ejected object \"%s\" owned by %s (%s)"):format(deployedObject.getName(), name or "nobody", id or "no id"), "Black", {1,0,0} )
+			end
+			for k,adminCol in pairs(getSeatedPlayers()) do
+				if Player[adminCol].admin then
+					broadcastToColor( ("Save Storage: Ejected object \"%s\" owned by %s (%s)"):format(deployedObject.getName(), name or "nobody", id or "no id"), adminCol, {1,0,0} )
+				end
+			end
+		end
+	end
+end
+
+-- Process Load --
+------------------
+
+function claim(o, color)
+    if not lockout then
+        lockoutTimer(1.2)
+        local saveObjects = self.getObjects()
+        local saveFound = false
+        local params = {}
+        params.position = playerZone[color].zone.getPosition()
+        for i, object in ipairs(saveObjects) do
+			if object.name:match("%d+$") == Player[color].steam_id then
+                params.index = object.index
+                local foundObject = self.takeObject(params)
+                doObjectName(foundObject, color)
+                return
+            end
+        end
+        broadcastToColor("Error: No save found.\nDo you already have your save?", color, {1,0.25,0.25})
+    else
+        broadcastToColor("Error: Button delay is active.\nWait a moment then try again.", color, {1,0.25,0.25})
+    end
+end
+
+function free(o, color)
+    if not lockout then
+        lockoutTimer(1.2)
+		local hadSave = false
+		if hadStarter[Player[color].steam_id or ""] then
+			hadSave = true
+			if color~="Black" and not Player[color].admin then
+				broadcastToColor("Error: You either already have a save or\nyou have already claimed your free starter.", color, {1,0.25,0.25})
+				
+				return
+			end
+		end
+		
+        local params = {}
+        params.position = playerZone[color].zone.getPosition()
+        local saveContainer = saveBag.takeObject(params)
+        saveContainer.shuffle()
+        local playerSave = saveContainer.takeObject(params)
+        saveContainer.destruct()
+        if not hadSave then doObjectName(playerSave, color) end
+		
+        params.position.y = params.position.y + 2
+        local starter = starterBag.takeObject(params)
+        local starterObjects = starter.getObjects()
+        for i, object in ipairs(starterObjects) do
+            params.position.y = params.position.y + 1.5
+            local taken = starter.takeObject(params)
+			
+			if taken then
+				local oldDesc = taken.getDescription() or ""
+				if #oldDesc>0 then oldDesc = "\n\n"..oldDesc end
+				
+				taken.setDescription( ("%s - %s%s"):format( Player[color].steam_id, Player[color].steam_name, oldDesc ) )
+				playerSave.putObject(taken)
+			end
+        end
+        starter.destruct()
+		hadStarter[Player[color].steam_id or ""] = true
+    else
+        broadcastToColor("Error: Button delay is active.\nWait a moment then try again.", color, {1,0.25,0.25})
+    end
+end
+
+
+-- Player Join/Leave --
+-----------------------
 function onPlayerChangeColor(color)
 	-- Auto Save --
 	for _,oldCol in pairs({"Pink","Purple","Blue","Teal","Green","Yellow","Orange","Red","Brown","White"}) do -- Wouldn't it be nice if this function incldued the previous colour?
@@ -180,7 +389,7 @@ function onPlayerChangeColor(color)
             if object.name:match("%d+$") == Player[color].steam_id then
                 params.index = object.index
                 local foundObject = self.takeObject(params)
-                updateSave(foundObject, color)
+                doObjectName(foundObject, color)
                 broadcastToColor("Save found: Welcome back ".. Player[color].steam_name .."!", color, {0.25,1,0.25})
 				
 				hadStarter[Player[color].steam_id or ""] = true
@@ -196,7 +405,7 @@ function onPlayerChangeColor(color)
 			saveContainer.shuffle()
 			local playerSave = saveContainer.takeObject(params)
 			saveContainer.destruct()
-			updateSave(playerSave, color)
+			doObjectName(playerSave, color)
 			params.position.y = params.position.y + 2
 			local starter = starterBag.takeObject(params)
 			local starterObjects = starter.getObjects()
@@ -221,107 +430,22 @@ function onPlayerChangeColor(color)
 	end
 end
 
+
+-- Buttons --
+-------------
+
 function lockoutTimer(time)
     lockout = true
     Timer.destroy(self.getGUID())
     Timer.create({identifier=self.getGUID(), function_name='concludeLockout', delay=time})
 end
-
 function concludeLockout()
     lockout = false
 end
 
-function save(o, color)
-    if not lockout then
-        lockoutTimer(1.2)
-        local foundObjects = playerZone[color].zone.getObjects()
-        local saveObjects = self.getObjects()
-        local saveFound = false
-        local params = {}
-        params.position = self.getPosition()
-        for i, object in ipairs(foundObjects) do
-            if string.find(object.getName(), 'Player save:') then
-				table.insert(saveQueue, {object, color})
-				saveFound = true
-            end
-        end
-		if saveFound then
-			Timer.destroy("DoSaveQueue")
-			Timer.create({identifier="DoSaveQueue", function_name="DoSaveQueue", delay=0.25, repetitions=0})
-		else
-			broadcastToColor("Error: No save found.\nPlease position your save inside your colored zone.", color, {1,0.25,0.25})
-		end
-    else
-        broadcastToColor("Error: Button delay is active.\nWait a moment then try again.", color, {1,0.25,0.25})
-    end
-end
-
-function claim(o, color)
-    if not lockout then
-        lockoutTimer(1.2)
-        local saveObjects = self.getObjects()
-        local saveFound = false
-        local params = {}
-        params.position = playerZone[color].zone.getPosition()
-        for i, object in ipairs(saveObjects) do
-			if object.name:match("%d+$") == Player[color].steam_id then
-                params.index = object.index
-                local foundObject = self.takeObject(params)
-                updateSave(foundObject, color)
-                return
-            end
-        end
-        broadcastToColor("Error: No save found.\nDo you already have your save?", color, {1,0.25,0.25})
-    else
-        broadcastToColor("Error: Button delay is active.\nWait a moment then try again.", color, {1,0.25,0.25})
-    end
-end
-
-function free(o, color)
-    if not lockout then
-        lockoutTimer(1.2)
-		local hadSave = false
-		if hadStarter[Player[color].steam_id or ""] then
-			hadSave = true
-			if color~="Black" and not Player[color].admin then
-				broadcastToColor("Error: You either already have a save or\nyou have already claimed your free starter.", color, {1,0.25,0.25})
-				
-				return
-			end
-		end
-		
-        local params = {}
-        params.position = playerZone[color].zone.getPosition()
-        local saveContainer = saveBag.takeObject(params)
-        saveContainer.shuffle()
-        local playerSave = saveContainer.takeObject(params)
-        saveContainer.destruct()
-        if not hadSave then updateSave(playerSave, color) end
-		
-        params.position.y = params.position.y + 2
-        local starter = starterBag.takeObject(params)
-        local starterObjects = starter.getObjects()
-        for i, object in ipairs(starterObjects) do
-            params.position.y = params.position.y + 1.5
-            local taken = starter.takeObject(params)
-			
-			if taken then
-				local oldDesc = taken.getDescription() or ""
-				if #oldDesc>0 then oldDesc = "\n\n"..oldDesc end
-				
-				taken.setDescription( ("%s - %s%s"):format( Player[color].steam_id, Player[color].steam_name, oldDesc ) )
-				playerSave.putObject(taken)
-			end
-        end
-        starter.destruct()
-		hadStarter[Player[color].steam_id or ""] = true
-    else
-        broadcastToColor("Error: Button delay is active.\nWait a moment then try again.", color, {1,0.25,0.25})
-    end
-end
 
 function purge(time, col) -- Based on unix time, so time argument is seconds
-	if not (col == "Black" or Player[col].promoted or Player[col].host) then
+	if not (col == "Black" or Player[col].host) then
 		broadcastToColor("You cannot do this.", col, {1,0,0})
 		return
 	end
