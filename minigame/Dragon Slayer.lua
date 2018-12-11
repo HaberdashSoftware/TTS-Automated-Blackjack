@@ -2,7 +2,7 @@
 local TARGET_DRAGON = 0
 local TARGET_ALLY = 1
 local TARGET_SELF = 2
-local TARGET_ALL = 3 -- Can also choose to target self
+local TARGET_ALL = 3
 
 local lootIcon = "https://i.imgur.com/HeAqP16.png"
 local effectIconDefault = "https://i.imgur.com/SIyiVgm.png"
@@ -14,10 +14,10 @@ local classData = {
 			{name="Attack", tooltip="Deal 3 damage to the dragon.", effects={
 				{ dmg = 3, icon = "https://i.imgur.com/ZyO8EgA.png?1" },
 			}},
-			{name="Reckless Stance", tooltip="For the next 4 turns, deal 2 additional damage to the dragon.\nIncreases all damage taken by 3.", effects= {
-				{ dmg = 2, vulnerability = 3, turns = 4, icon = "https://i.imgur.com/Zf9UXJu.png" },
+			{name="Reckless Stance", tooltip="For the next 4 turns, deal 2 additional damage to the dragon.\nIncreases all damage taken by 1.", effects= {
+				{ dmg = 2, vulnerability = 1, turns = 4, icon = "https://i.imgur.com/Zf9UXJu.png" },
 			}},
-			{name="Defend",  tooltip="Reduce damage taken by 2 this turn.", effects={
+			{name="Defend",  tooltip="Reduce damage taken by 2 this round.", effects={
 				{ def = 2, icon = "https://i.imgur.com/gXgvNPo.png?1" },
 			}},
 		}
@@ -25,14 +25,17 @@ local classData = {
 	["Paladin"] = {
 		hp = 8,
 		actions = {
-			{name="Attack", tooltip="Deal 2 damage to the dragon.", effects={
-				{ dmg = 2, icon = "https://i.imgur.com/ZyO8EgA.png?1" },
+			{name="Attack", tooltip="Deal 3 damage to the dragon.", effects={
+				{ dmg = 3, icon = "https://i.imgur.com/ZyO8EgA.png?1" },
 			}},
 			{name="Heal Self", tooltip="Restore 2 hit points", effects={
 				{ heal = 2, icon = "https://i.imgur.com/QHc977e.png" },
 			}},
-			{name="Protect", target = TARGET_ALLY, tooltip="Reduce the damage an ally takes by 2 for 3 turns.", effects={
-				{ def = 2, turns = 3, icon = "https://i.imgur.com/gXgvNPo.png?1" },
+			{name="Protect", target = TARGET_ALLY, tooltip="Reduce the damage a player takes by 4 for 3 turns.", effects={
+				{ def = 4, turns = 3, icon = "https://i.imgur.com/gXgvNPo.png?1" },
+			}},
+			{name="Thorns Aura", target = TARGET_ALL, tooltip="Reduce the damage all players take by 1 this round.\nPlayers deal 1 damage when attacked.", effects={
+				{ thorns = 2, def = 1, icon = "https://i.imgur.com/dribtTm.png" },
 			}},
 		}
 	},
@@ -56,11 +59,15 @@ local classData = {
 			{name="Smite",  tooltip="Deal 1 damage to the dragon and heal yourself for 2 hit points.", effects={
 				{ dmg = 1, heal = 2, icon = "https://i.imgur.com/l7XzInu.png?1" },
 			}},
-			{name="Heal Target", target = TARGET_ALLY, tooltip="Heal an ally for 4 hit points.", effects={
+			{name="Heal Target", target = TARGET_ALLY, tooltip="Heal a player for 4 hit points.", effects={
 				{ heal = 4, icon = "https://i.imgur.com/QHc977e.png" },
 			}},
 			{name="Heal All", target = TARGET_ALL, tooltip="Heal everyone for 1 hit point.", effects={
 				{ heal = 1, icon = "https://i.imgur.com/QHc977e.png" },
+			}},
+			{name="Pray", tooltip="The gods will save you.\nHeal yourself for 3 hit points.\nReduce damage taken by 2 for 3 rounds.", effects={
+				{ def = 2, turns = 3, icon = "https://i.imgur.com/sF5CxWi.png" },
+				{ heal = 3, icon = "https://i.imgur.com/DP9pMoO.png" },
 			}},
 		}
 	},
@@ -76,6 +83,20 @@ local classData = {
 			}},
 			{name="Vanish", tooltip="Reduce damage taken by 3 for 2 turns.", effects={
 				{ def = 3, turns = 2, icon = "https://i.imgur.com/x1ueuqk.png" },
+			}},
+		}
+	},
+	["Druid"] = {
+		hp = 6,
+		actions = {
+			{name="Vine Snare",  tooltip="Deal 2 damage to the dragon.\nDeal an additional 4 damage if you are attacked this round.", effects={
+				{ dmg = 2, thorns = 4, icon = "https://i.imgur.com/iywrYNA.png" },
+			}},
+			{name="Plant Growth", target = TARGET_ALLY, tooltip="Target player regenerates 1 health for 4 rounds and deals extra damage when attacked.", effects={
+				{ heal = 1, thorns = 2, turns = 4, icon = "https://i.imgur.com/Xy7fag5.png" },
+			}},
+			{name="Purify", target = TARGET_ALLY, tooltip="Remove all debuffs from a player.", effects={
+				{ purify = true, icon = "https://i.imgur.com/iKJuoEB.png" },
 			}},
 		}
 	},
@@ -125,6 +146,10 @@ for name,data in pairs(rewardData) do
 end
 
 
+local DragonEffects = {
+	["Roar"] = true, ["Dragon Flight"] = true,
+	["In the Dragon's Maw"] = true, ["Dragon Fire"] = true,
+}
 local dragonDebuffs = {
 	function()
 		broadcastToAll( "The dragon roars!", {0.7, 0.2, 0.2} )
@@ -187,6 +212,35 @@ local dragonDebuffs = {
 			end
 		end
 	end,
+	function()
+		local potentialTargets = {}
+		local sets = Global.getTable("objectSets")
+		for i=1,#sets do
+			local set = sets[i]
+			if playingUsers[set.color] and playingUsers[set.color].CurHP>0 then
+				for i, object in ipairs(set.zone.getObjects()) do
+					if (object.tag == "Figurine" and object.getLock()) and object.getName()~="Loot" and not DragonEffects[object.getName()] then
+						table.insert( potentialTargets, {color=set.color, zone=set.zone} )
+						break
+					end
+				end
+			end
+		end
+		if #potentialTargets==0 then return end
+		
+		local chosen = potentialTargets[ math.random(1, #potentialTargets) ]
+		if not chosen then return end
+		
+		broadcastToAll( ("The dragon glares at %s, they lose the will to fight!"):format(chosen.color), {0.7, 0.2, 0.2} )
+		printToColor( "All player effects have been removed from you.", chosen.color, {0.7, 0.2, 0.2} )
+		
+		for i, object in ipairs(chosen.zone.getObjects()) do
+			if (object.tag == "Figurine" and object.getLock()) and object.getName()~="Loot" and not DragonEffects[object.getName()] then
+				destroyObject(object)
+				break
+			end
+		end
+	end,
 }
 
 local function ChooseTarget()
@@ -223,6 +277,13 @@ local dragonAttacks = {
 		
 		local effects = {preventRun = true, icon="https://i.imgur.com/6qE6LHu.png"}
 		addEffect( "Dragon", chosen.zone, "In the Dragon's Maw", effects )
+		
+		
+		local thorns = getThornsMod( chosen.zone ) or 0
+		if thorns>0 then
+			DragonHealth = DragonHealth - thorns
+			broadcastToAll( ("The dragon takes %i damage in return!"):format(thorns), {0.2, 0.7, 0.2} )
+		end
 	end,
 	function() -- Fire Breath
 		broadcastToAll( "The dragon breathes fire!", {0.7, 0.2, 0.2} )
@@ -252,6 +313,12 @@ local dragonAttacks = {
 		end
 		
 		playingUsers[chosen.color].CurHP = playingUsers[chosen.color].CurHP - moddedDamage
+		
+		local thorns = getThornsMod( chosen.zone ) or 0
+		if thorns>0 then
+			DragonHealth = DragonHealth - thorns
+			broadcastToAll( ("The dragon takes %i damage in return!"):format(thorns), {0.2, 0.7, 0.2} )
+		end
 	end,
 }
 
@@ -704,12 +771,29 @@ end
 
 -- Effects
 
+local purifyEffects = {
+	"Increase damage taken by %i\n",
+}
+
+local effToFunc = {
+	purify = function( col, zone )
+		for i, object in ipairs(zone.getObjects()) do
+			if (object.tag == "Figurine" and object.getLock()) and object.getName()~="Loot" and DragonEffects[object.getName()] then
+				destroyObject(object)
+			end
+		end
+		printToColor( "All dragon effects have been removed from you.", col, {0.7, 0.2, 0.2} )
+	end
+}
 local effToString = {
 	dmg = "Deal %i damage\n",
 	def = "Reduce damage taken by %i\n",
+	thorns = "Return %i damage\n",
 	vulnerability = "Increase damage taken by %i\n",
 	heal = "Restore %i health\n",
 	burn = "Take %i damage\n",
+	
+	purify = "Debuffs have been removed\n",
 	
 	attemptLoot = "You are looting\n",
 	attemptRun = "You are fleeing\n",
@@ -725,6 +809,9 @@ function addEffect( col, zone, name, effect, addPos )
 	for eff,num in pairs(effect) do
 		if effToString[eff] then
 			desc = desc .. effToString[eff]:format(num or 0)
+		end
+		if effToFunc[eff] then
+			effToFunc[eff]( col, zone )
 		end
 	end
 	
@@ -797,6 +884,21 @@ function getDamageMod( zone )
 			local subtract = tonumber( desc:match("Reduce damage taken by (%d+)") ) or 0
 			
 			mod = (mod + add) - subtract
+		end
+	end
+	
+	return mod
+end
+function getThornsMod( zone )
+	local mod = 0
+	
+	local zoneObjectList = zone.getObjects()
+	for i, object in ipairs(zoneObjectList) do
+		if (object.tag == "Figurine" and object.getLock()) and object.getName()~="Loot" then
+			local desc = object.getDescription()
+			local add = tonumber( desc:match("Return (%d+) damage") ) or 0
+			
+			mod = mod + add
 		end
 	end
 	
@@ -908,6 +1010,11 @@ function doDragonTurn()
 	doDragonAttacks()
 	if coroutineQuit then return 1 end
 	waitTime( 3 )
+	
+	if DragonHealth<=0 then
+		doDragonDeath()
+		return 1
+	end
 	
 	for i, set in pairs(Global.getTable("objectSets")) do
 		if coroutineQuit then break end
