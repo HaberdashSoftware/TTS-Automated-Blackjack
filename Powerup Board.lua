@@ -7,8 +7,8 @@ local powerupsTable = {
 	{"Turn a random card into Ace","Remove a random card from a player's hand","Steal a random card from another player","Force a player to draw an additional card","Shuffle hands with another player","Shuffle all player's cards"},
 	{"Activate Bonus Round Timer","New bonus round","Copy a random player's hand","Swap hands with a random player","Save all other players","Discard the last drawn card"},
 	{"Refresh","Random Subtract","View the next card","Minigame","Chaos","Mugging"},
-	{"Give a card","Bump","Swap All","Swap Powerups","Royal token","Reward token"},
-	{"Random rupee pull"},
+	{"Give a card","Bump","Swap All","Swap Powerups","Flood","Explode"},
+	{"Royal token","Random rupee pull","Reward token"},
 }
 local numPowerups = {}
 for i=1,#powerupsTable do
