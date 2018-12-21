@@ -1266,6 +1266,7 @@ function processLoot()
 	
 	local foundLoot = false
 	local toProcess = false
+	local slot = 0
 	repeat -- Process loot objects
 		waitTime( 0.25 )
 		
@@ -1276,7 +1277,7 @@ function processLoot()
 				if (object.tag == "Figurine" and object.getLock()) and object.getName()=="Loot" then
 					destroyObject( object )
 					
-					addRandomLoot( set.zone )
+					addRandomLoot( set.zone, slot )
 					
 					foundLoot = true
 					toProcess = true
@@ -1284,6 +1285,8 @@ function processLoot()
 				end
 			end
 		end
+		
+		slot = slot + 1
 	until not foundLoot
 	
 	waitTime( toProcess and 5 or 1 )
@@ -1293,17 +1296,7 @@ function processLoot()
 	return 1
 end
 
-function getNewLootPos( zone )
-	local slot = 0
-	for i, set in pairs(Global.getTable("objectSets")) do
-		local zoneObjectList = set.zone.getObjects()
-		for i, object in ipairs(zoneObjectList) do
-			if (object.tag == "Figurine" and object.getLock()) and object.getName()~="Loot" then
-				slot = slot + 1
-			end
-		end
-	end
-	
+function getNewLootPos( zone, slot )
 	local pos = zone.getPosition()
 	
 	local row = (math.floor((slot%9)/3) - 1)
@@ -1317,13 +1310,13 @@ function getNewLootPos( zone )
 	
 	return {xpos, ypos, zpos}
 end
-function addRandomLoot( zone )
+function addRandomLoot( zone, slot )
 	local reward = weightedRewards[ math.random(1, #weightedRewards) ]
 	
 	local data = rewardData[reward]
 	if not data then return end
 	
-	createEffectObject( getNewLootPos(zone), data.icon, reward, "", {r=1,g=1,b=1} )
+	createEffectObject( getNewLootPos(zone, slot), data.icon, reward, "", {r=1,g=1,b=1} )
 end
 
 function resetObjectPosition(obj, data)
