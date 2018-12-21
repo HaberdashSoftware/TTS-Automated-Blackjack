@@ -77,9 +77,8 @@ local classData = {
 			{name="Sneak Attack",  tooltip="Deal 3 damage to the dragon.", effects={
 				{ dmg = 3, icon = "https://i.imgur.com/CWqZM87.png" },
 			}},
-			{name="Pillage", tooltip = "Gain two Loot. Increase damage taken by 4 this round.", effects={
-				{ attemptLoot = true, vulnerability = 2, icon = "https://i.imgur.com/hplVGRR.png"},
-				{ attemptLoot = true, vulnerability = 2, icon = "https://i.imgur.com/hplVGRR.png"},
+			{name="Pillage", tooltip = "Gain one loot for the next 3 turns. Increase damage taken by 1.", effects={
+				{ attemptLoot = true, vulnerability = 1, turns = 3, icon = "https://i.imgur.com/hplVGRR.png"},
 			}},
 			{name="Vanish", tooltip="Reduce damage taken by 3 for 2 turns.", effects={
 				{ def = 3, turns = 2, icon = "https://i.imgur.com/x1ueuqk.png" },
@@ -89,14 +88,15 @@ local classData = {
 	["Druid"] = {
 		hp = 6,
 		actions = {
-			{name="Vine Snare",  tooltip="Deal 2 damage to the dragon.\nDeal an additional 4 damage if you are attacked this round.", effects={
-				{ dmg = 2, thorns = 4, icon = "https://i.imgur.com/iywrYNA.png" },
+			{name="Vine Snare",  tooltip="Deal 2 damage to the dragon.\nDeal an additional 4 damage if you are attacked this round.\nReduce damage taken by 1 this round.", effects={
+				{ dmg = 2, thorns = 4, def = 1, icon = "https://i.imgur.com/iywrYNA.png" },
 			}},
-			{name="Plant Growth", target = TARGET_ALLY, tooltip="Target player regenerates 1 health for 4 rounds and deals extra damage when attacked.", effects={
-				{ heal = 1, thorns = 2, turns = 4, icon = "https://i.imgur.com/Xy7fag5.png" },
+			{name="Plant Growth", target = TARGET_ALLY, tooltip="Target player regenerates 1 health.\nPlayer deals 2 damage when attacked.\nPlayer's damage taken is reduced by 1.\nLasts for 4 rounds.", effects={
+				{ heal = 1, thorns = 2, def = 1, turns = 4, icon = "https://i.imgur.com/Xy7fag5.png" },
 			}},
-			{name="Purify", target = TARGET_ALLY, tooltip="Remove all debuffs from a player.", effects={
+			{name="Purify", target = TARGET_ALLY, tooltip="Remove all debuffs from a player and yourself.", effects={
 				{ purify = true, icon = "https://i.imgur.com/iKJuoEB.png" },
+				{ purify = true, icon = "https://i.imgur.com/iKJuoEB.png", target = TARGET_SELF },
 			}},
 		}
 	},
@@ -190,7 +190,7 @@ local dragonDebuffs = {
 		local healAmount = math.random( 1, math.ceil(count*1.5) )
 		printToAll( ("The dragon regains %i health points!"):format(healAmount), {0.7, 0.2, 0.2} )
 		
-		DragonHealth = math.min(DragonHealth + healAmount, count*11)
+		DragonHealth = math.max( DragonHealth, math.min(DragonHealth + healAmount, getDragonMaxHealth(count)) )
 	end,
 	function()
 		broadcastToAll( "The dragon stomps around in anger", {0.7, 0.2, 0.2} )
@@ -237,7 +237,6 @@ local dragonDebuffs = {
 		for i, object in ipairs(chosen.zone.getObjects()) do
 			if (object.tag == "Figurine" and object.getLock()) and object.getName()~="Loot" and not DragonEffects[object.getName()] then
 				destroyObject(object)
-				break
 			end
 		end
 	end,
@@ -482,6 +481,8 @@ function chooseClass( col, class )
 	if not hasValue then return end -- Already answered or otherwise invalid
 	
 	local data = classData[class]
+	if not data then return end
+	
 	playingUsers[col] = {
 		Class = class,
 		MaxHP = data.hp,
@@ -506,6 +507,8 @@ end
 function skipGame(o,c)
 	local col = getButtonHandlerColor(o)
 	if (not col) or (col~=c and not Player[c].admin) then return end
+	
+	clearButtons( col )
 	
 	for i=#waitingFor,1,-1 do
 		if waitingFor[i]==col then
@@ -543,6 +546,16 @@ function startTurn()
 	Global.call( "forwardFunction", {function_name="setRoundState", data={2, 30}} )
 	startLuaCoroutine(self, "autoEndTurn")
 	
+	local sets = Global.getTable("objectSets")
+	for i=2,#sets do
+		local set = sets[i]
+		setupActions(set)
+	end
+end
+
+function setupActions(set)
+	if not set then return end
+	
 	local seated = getSeatedPlayers()
 	for i=1,#seated do -- Convert to reference table, saves us looping multiple times
 		if seated[i]~="Black" then
@@ -551,37 +564,33 @@ function startTurn()
 		seated[i] = nil
 	end
 	
-	local sets = Global.getTable("objectSets")
-	for i=2,#sets do
-		local set = sets[i]
-		if playingUsers[set.color] and playingUsers[set.color].CurHP>0 then
-			playingUsers[set.color].PendingAction = nil
-			local class = playingUsers[set.color].Class
-			if seated[set.color] and class and classData[class] then
+	if playingUsers[set.color] and playingUsers[set.color].CurHP>0 then
+		playingUsers[set.color].PendingAction = nil
+		local class = playingUsers[set.color].Class
+		if seated[set.color] and class and classData[class] then
+			set.btnHandler.createButton({
+				label="Run", click_function="actionRun", function_owner=self,
+				position={-1, 0.25, 0}, rotation={0,0,0}, width=400, height=350, font_size=130
+			})
+			set.btnHandler.createButton({
+				label="Loot", click_function="actionLoot", function_owner=self,
+				position={1, 0.25, 0}, rotation={0,0,0}, width=400, height=350, font_size=130
+			})
+			
+			local actions = classData[class].actions
+			for i=1,#actions do
 				set.btnHandler.createButton({
-					label="Run", click_function="actionRun", function_owner=self,
-					position={-1, 0.25, 0}, rotation={0,0,0}, width=400, height=350, font_size=130
+					label=actions[i].name or "<Action>", click_function="takeAction"..i, function_owner=self, scale = {1.2,1.2,1.2},
+					position={0, 0.25, 0.25 + i*0.9}, rotation={0,0,0}, width=950, height=325, font_size=130, tooltip = actions[i].tooltip
 				})
-				set.btnHandler.createButton({
-					label="Loot", click_function="actionLoot", function_owner=self,
-					position={1, 0.25, 0}, rotation={0,0,0}, width=400, height=350, font_size=130
-				})
-				
-				local actions = classData[class].actions
-				for i=1,#actions do
-					set.btnHandler.createButton({
-						label=actions[i].name or "<Action>", click_function="takeAction"..i, function_owner=self, scale = {1.2,1.2,1.2},
-						position={0, 0.25, 0.25 + i*0.9}, rotation={0,0,0}, width=950, height=325, font_size=130, tooltip = actions[i].tooltip
-					})
-				end
-				
-				broadcastToColor( "You have 30 seconds to choose an action.", set.color, {0.5,1,0} )
-				
-				table.insert( waitingFor, set.color )
-			else
-				playingUsers[set.color] = nil
-				clearAll(set.color, true)
 			end
+			
+			broadcastToColor( "You have 30 seconds to choose an action.", set.color, {0.5,1,0} )
+			
+			table.insert( waitingFor, set.color )
+		else
+			playingUsers[set.color] = nil
+			clearAll(set.color, true)
 		end
 	end
 end
@@ -626,16 +635,36 @@ function takeAction( col, actionID )
 		if dragonSet then
 			for i=1,#action.effects do
 				local eff = action.effects[i]
-				addEffect( col, dragonSet.zone, eff.name or action.name, eff, i-1 )
+				
+				if eff.target==TARGET_ALL then
+					for i, objectSet in pairs(Global.getTable("objectSets")) do
+						if playingUsers[objectSet.color] and playingUsers[objectSet.color].CurHP>0 then
+							addEffect( col, objectSet.zone, eff.name or action.name, eff, i-1 )
+						end
+					end
+				elseif eff.target==TARGET_SELF then
+					addEffect( col, set.zone, eff.name or action.name, eff, i-1 )
+				else
+					addEffect( col, dragonSet.zone, eff.name or action.name, eff, i-1 )
+				end
 			end
 		end
 	elseif action.target==TARGET_ALL then
-		for i, objectSet in pairs(Global.getTable("objectSets")) do
-			if playingUsers[objectSet.color] and playingUsers[objectSet.color].CurHP>0 then
-				
-				for i=1,#action.effects do
-					local eff = action.effects[i]
-					addEffect( col, objectSet.zone, eff.name or action.name, eff, i-1 )
+		for i=1,#action.effects do
+			local eff = action.effects[i]
+			
+			if eff.target==TARGET_SELF then
+				addEffect( col, set.zone, eff.name or action.name, eff, i-1 )
+			elseif eff.target==TARGET_DRAGON then
+				local dragonSet = Global.getTable("objectSets")[1]
+				if dragonSet then
+					addEffect( col, dragonSet.zone, eff.name or action.name, eff, i-1 )
+				end
+			else
+				for i, objectSet in pairs(Global.getTable("objectSets")) do
+					if playingUsers[objectSet.color] and playingUsers[objectSet.color].CurHP>0 then
+						addEffect( col, objectSet.zone, eff.name or action.name, eff, i-1 )
+					end
 				end
 			end
 		end
@@ -650,7 +679,7 @@ function takeAction( col, actionID )
 			addEffect( col, set.zone, eff.name or action.name, eff, i-1 )
 		end
 	end
-	
+	cleanupEffects( true )
 	actionComplete()
 end
 for i=1,10 do
@@ -717,6 +746,11 @@ function setupTargetButtons( handler )
 		color={0.8,0.8,0.8},
 	})
 	
+	handler.createButton({
+		label="Back", click_function="cancelTargetCol", function_owner=self, scale = {1,1,1},
+		position={1.6, 0.25, 2.9}, rotation={0,0,0}, width=450, height=275, font_size=120,
+	})
+	
 	local sets = Global.getTable("objectSets")
 	for i=2,#sets do
 		local set = sets[i]
@@ -730,6 +764,19 @@ function setupTargetButtons( handler )
 			id = id + 1
 		end
 	end
+end
+
+function cancelTargetCol( o,c )
+	local setCol = getButtonHandlerColor(o)
+	if not (setCol and (setCol==c or Player[c].admin)) then return end
+		
+	if not validPlayer(setCol) then return clearButtons(setCol) end
+	
+	if not playingUsers[setCol].PendingAction then return end
+	
+	clearButtons( setCol )
+	
+	setupActions( Global.call("forwardFunction", {function_name="findObjectSetFromColor", data={setCol}}) )
 end
 
 function targetColor( user, target )
@@ -751,22 +798,39 @@ function targetColor( user, target )
 	if targetSet then
 		for i=1,#action.effects do
 			local eff = action.effects[i]
-			addEffect( user, targetSet.zone, eff.name or action.name, eff, i-1 )
+			
+			if eff.target==TARGET_ALL then
+				for i, objectSet in pairs(Global.getTable("objectSets")) do
+					if playingUsers[objectSet.color] and playingUsers[objectSet.color].CurHP>0 then
+						addEffect( user, objectSet.zone, eff.name or action.name, eff, i-1 )
+					end
+				end
+			elseif eff.target==TARGET_SELF then
+				local set = Global.call( "forwardFunction", {function_name="findObjectSetFromColor", data={user}} )
+				if set then
+					addEffect( user, set.zone, eff.name or action.name, eff, i-1 )
+				end
+			elseif eff.target==TARGET_DRAGON then
+				local dragonSet = Global.getTable("objectSets")[1]
+				if dragonSet then
+					addEffect( user, dragonSet.zone, eff.name or action.name, eff, i-1 )
+				end
+			else
+				addEffect( user, targetSet.zone, eff.name or action.name, eff, i-1 )
+			end
 		end
 	end
 	
+	cleanupEffects( true )
 	actionComplete()
 end
-for _,targetCol in pairs({"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink"}) do -- There's apparently no function to get this list of colours...
+for _,targetCol in pairs({"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink"}) do
 	_G["targetCol"..targetCol] = function(o,c)
 		local setCol = getButtonHandlerColor(o)
 		if setCol and (setCol==c or Player[c].admin) then
 			return targetColor( setCol, targetCol )
 		end
 	end
-end
-
-function targetCol( colUser, colTarget )
 end
 
 -- Effects
@@ -907,6 +971,9 @@ end
 
 -- End Turn
 
+function getDragonMaxHealth( count )
+	return 5 + ((count or 12) * 9)
+end
 function endTurn()
 	inTurn = false
 	
@@ -925,7 +992,7 @@ function endTurn()
 	end
 	
 	if not hasStarted then
-		DragonHealth = count * 10
+		DragonHealth = getDragonMaxHealth( count )
 		
 		startTurn()
 		return
@@ -992,9 +1059,14 @@ end
 function doDragonTurn()
 	waitTime( 1 ) -- Effects need time to set up
 	
+	local playerCount = 0
 	for i, set in pairs(Global.getTable("objectSets")) do
 		if playingUsers[set.color] and playingUsers[set.color].CurHP>0 then
 			preDragonEffects( set.color, set.zone )
+			
+			if playingUsers[set.color].CurHP>0 then -- Still alive, add to count
+				playerCount = playerCount + 1
+			end
 		end
 	end
 	
@@ -1007,7 +1079,7 @@ function doDragonTurn()
 	doDragonDebuffs()
 	waitTime( 3 )
 	
-	doDragonAttacks()
+	doDragonAttacks( math.ceil(playerCount/4) )
 	if coroutineQuit then return 1 end
 	waitTime( 3 )
 	
@@ -1035,8 +1107,29 @@ end
 function doDragonDebuffs()
 	dragonDebuffs[ math.random(1, #dragonDebuffs) ]()
 end
-function doDragonAttacks()
-	dragonAttacks[ math.random(1, #dragonAttacks) ]()
+function doDragonAttacks( numAttacks )
+	if (not numAttacks) or numAttacks<=1 then
+		dragonAttacks[ math.random(1, #dragonAttacks) ]()
+		return
+	end
+	
+	local possibleAttacks = {}
+	for i=1,#dragonAttacks do
+		table.insert(possibleAttacks, i)
+	end
+	
+	if numAttacks>1 and #possibleAttacks>1 then
+		broadcastToAll( "Multi-Attack!", {0.7, 0.2, 0.2} )
+	end
+	
+	while (numAttacks>0 and #possibleAttacks>0) do
+		local att = math.random(1,#possibleAttacks)
+		
+		dragonAttacks[ possibleAttacks[att] ]()
+		
+		table.remove(possibleAttacks, att)
+		numAttacks = numAttacks - 1
+	end
 end
 
 function doDragonDeath()
@@ -1132,27 +1225,38 @@ function postRoundEffects( col, zone )
 	end
 end
 
-function cleanupEffects()
+function cleanupEffects( ignoreTurns )
 	for i, set in pairs(Global.getTable("objectSets")) do
 		local zoneObjectList = set.zone.getObjects()
 		local remainingObjects = {}
 		for i, object in ipairs(zoneObjectList) do
 			if (object.tag == "Figurine" and object.getLock()) and object.getName()~="Loot" then
-				local desc = object.getDescription()
-				local before,turns,after = desc:match( "(.*)(%d+) turns(.*)" )
-				
-				if turns then
-					turns = turns - 1
-					
-					if turns>1 then
-						object.setDescription( ("%s%i turns%s"):format( before or "", turns, after or "" ) )
-					else
-						object.setDescription( ("%sThis turn%s"):format( before or "", after or "" ) )
-					end
-					
+				if ignoreTurns then
 					table.insert( remainingObjects, object )
 				else
-					destroyObject( object )
+					local desc = object.getDescription()
+					
+					local turns = 0
+					desc = desc:gsub("(%d+) turns", function(num)
+						turns = math.max(turns, num-1)
+						return ""
+					end)
+					
+					if turns and turns>0 then
+						while desc:match("\n\n$") do
+							desc = desc:gsub("\n\n$", "")
+						end
+						
+						if turns>1 then
+							object.setDescription( ("%s%i turns"):format(desc, turns) )
+						else
+							object.setDescription( ("%sThis turn"):format(desc) )
+						end
+						
+						table.insert( remainingObjects, object )
+					else
+						destroyObject( object )
+					end
 				end
 			end
 		end
