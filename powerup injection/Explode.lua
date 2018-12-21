@@ -75,9 +75,10 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 	local cardNameTable = Global.getTable("cardNameTable") or {}
 	local dlr = sets[1].value
 	local rewards = 0
-	for hand,added in pairs(addedCards) do
+	for handIndex,added in pairs(addedCards) do
+		local hand = handSets[handIndex]
 		if hand.color~=d.setUser.color and hand.UserColor~=d.setUser.color then -- Not one of our hands, Help is possible
-			if hand.value<=21 and hand.value<=dlr.value and (dlr<=21 or dlr==69) then -- Losing, not bust
+			if hand.value<=21 and hand.value<=dlr and (dlr<=21 or dlr==69) then -- Losing, not bust
 				if hand.value<dlr and hand.count<5 and hand.count+#added>=5 then -- Easy checks first, worst case this is loss to push
 					rewards = rewards + 1
 				else
