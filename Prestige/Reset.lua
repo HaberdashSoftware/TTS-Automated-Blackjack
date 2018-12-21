@@ -46,12 +46,12 @@ function createDisplay()
 	
 	self.createButton({
 		label=tostring(PrestigeRolloverLevel), click_function="createDisplay", function_owner=self,
-		position={0,1.14,0.33}, rotation={-90,0,0}, width=0, height=0, font_size=110,
+		position={0,1.17,0.33}, rotation={-90,0,0}, width=0, height=0, font_size=110,
 		font_color = {r=1,g=1,b=1},
 	})
 	self.createButton({
 		label=tostring(PrestigeRolloverLevel), click_function="createDisplay", function_owner=self,
-		position={0,1.14,-0.33}, rotation={90,0,180}, width=0, height=0, font_size=110,
+		position={0,1.17,-0.33}, rotation={90,0,180}, width=0, height=0, font_size=110,
 		font_color = {r=1,g=1,b=1},
 	})
 end
@@ -184,13 +184,20 @@ function checkPlace(o,c)
 	if PrestigePlayers[Player[c].steam_id] then
 		local pos = nil
 		
+		for i=1,#(OrderedPlayers or {}) do
+			if OrderedPlayers[i].id==Player[c].steam_id then
+				pos = i
+				break
+			end
+		end
+		
 		if pos then
 			self.editButton({
-				index = 0, label= ("%s\n%s Place\n%i Prestige Rollovers"):format(Player[c].steam_name, PlaceToString(pos), PrestigePlayers[Player[c].steam_id].level or "[N/A]"),
+				index = 0, label= ("%s\n%s Place\n%i Prestige Rollover%s"):format(Player[c].steam_name, PlaceToString(pos), PrestigePlayers[Player[c].steam_id].level or "[N/A]", PrestigePlayers[Player[c].steam_id].level==1 and "" or "s"),
 			})
 		else
 			self.editButton({
-				index = 0, label= ("%s\n[N/A] Place\n%i Prestige Rollovers"):format(Player[c].steam_name, PrestigePlayers[Player[c].steam_id].level or "[N/A]"),
+				index = 0, label= ("%s\n[N/A] Place\n%i Prestige Rollover%s"):format(Player[c].steam_name, PrestigePlayers[Player[c].steam_id].level or "[N/A]", PrestigePlayers[Player[c].steam_id].level==1 and "" or "s"),
 			})
 		end
 	else
@@ -223,7 +230,7 @@ function generateOrder()
 			end
 			return a.name<b.name
 		end
-		return a.level<b.level
+		return a.level>b.level
 	end)
 	
 	if DisplaySetup then
@@ -254,12 +261,12 @@ function createDisplay()
 	
 	self.createButton({
 		label=TotalRollovers, click_function="doNull", function_owner=self,
-		position={0,1.14,0.33}, rotation={-90,0,0}, width=0, height=0, font_size=110,
+		position={0,1.17,0.33}, rotation={-90,0,0}, width=0, height=0, font_size=110,
 		font_color = {r=1,g=1,b=1},
 	})
 	self.createButton({
 		label=TotalRollovers, click_function="doNull", function_owner=self,
-		position={0,1.14,-0.33}, rotation={90,0,180}, width=0, height=0, font_size=110,
+		position={0,1.17,-0.33}, rotation={90,0,180}, width=0, height=0, font_size=110,
 		font_color = {r=1,g=1,b=1},
 	})
 	
@@ -268,35 +275,35 @@ function createDisplay()
 	local pos = {0,2,0}
 	for i=math.min(#OrderedPlayers, 10),1,-1 do
 		self.createButton({
-			label=tostring(i)..".", click_function="doNull", function_owner=self,
-			position={pos[1]-2.5,pos[2],pos[3]}, rotation={-90,0,0}, width=0, height=0, font_size=110,
+			label=tostring(PlaceToString(i)), click_function="doNull", function_owner=self,
+			position={pos[1]-2.0,pos[2],pos[3]}, rotation={-90,0,0}, width=0, height=0, font_size=80,
 			font_color = {r=0,g=0,b=0},
 		})
 		self.createButton({
-			label=tostring(i), click_function="doNull", function_owner=self,
-			position={pos[1]-2.52,pos[2],pos[3]-0.02}, rotation={-90,0,0}, width=0, height=0, font_size=110,
+			label=tostring(PlaceToString(i)), click_function="doNull", function_owner=self,
+			position={pos[1]-2.02,pos[2],pos[3]-0.02}, rotation={-90,0,0}, width=0, height=0, font_size=80,
 			font_color = {r=1,g=1,b=1},
 		})
 		
 		self.createButton({
 			label=OrderedPlayers[i].name or "{name}", click_function="doNull", function_owner=self,
-			position={pos[1],pos[2],pos[3]}, rotation={-90,0,0}, width=0, height=0, font_size=110,
+			position={pos[1]-0.5,pos[2],pos[3]}, rotation={-90,0,0}, width=0, height=0, font_size=80,
 			font_color = {r=0,g=0,b=0},
 		})
 		self.createButton({
 			label=OrderedPlayers[i].name or "{name}", click_function="doNull", function_owner=self,
-			position={pos[1]-0.02,pos[2],pos[3]-0.02}, rotation={-90,0,0}, width=0, height=0, font_size=110,
+			position={pos[1]-0.52,pos[2],pos[3]-0.02}, rotation={-90,0,0}, width=0, height=0, font_size=80,
 			font_color = {r=1,g=1,b=1},
 		})
 		
 		self.createButton({
-			label=("%i Prestige Rollovers"):format(OrderedPlayers[i].level or 0), click_function="doNull", function_owner=self,
-			position={pos[1]+3.5,pos[2],pos[3]}, rotation={-90,0,0}, width=0, height=0, font_size=110,
+			label=("%i Prestige Rollover%s"):format(OrderedPlayers[i].level or 0, OrderedPlayers[i].level==1 and "" or "s"), click_function="doNull", function_owner=self,
+			position={pos[1]+1.5,pos[2],pos[3]}, rotation={-90,0,0}, width=0, height=0, font_size=80,
 			font_color = {r=0,g=0,b=0},
 		})
 		self.createButton({
-			label=("%i Prestige Rollovers"):format(OrderedPlayers[i].level or 0), click_function="doNull", function_owner=self,
-			position={pos[1]+3.48,pos[2],pos[3]-0.02}, rotation={-90,0,0}, width=0, height=0, font_size=110,
+			label=("%i Prestige Rollover%s"):format(OrderedPlayers[i].level or 0, OrderedPlayers[i].level==1 and "" or "s"), click_function="doNull", function_owner=self,
+			position={pos[1]+1.48,pos[2],pos[3]-0.02}, rotation={-90,0,0}, width=0, height=0, font_size=80,
 			font_color = {r=1,g=1,b=1},
 		})
 		
@@ -310,7 +317,7 @@ function createDisplay()
 	})
 	self.createButton({
 		label="Top Prestige Rollovers", click_function="doNull", function_owner=self,
-		position={pos[1]-0.2,pos[2],pos[3]-0.02}, rotation={-90,0,0}, width=0, height=0, font_size=110,
+		position={pos[1]-0.02,pos[2],pos[3]-0.02}, rotation={-90,0,0}, width=0, height=0, font_size=110,
 		font_color = {r=1,g=1,b=1},
 	})
 end
