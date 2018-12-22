@@ -679,7 +679,10 @@ function takeAction( col, actionID )
 			addEffect( col, set.zone, eff.name or action.name, eff, i-1 )
 		end
 	end
-	cleanupEffects( true )
+	
+	Wait.frames( function()
+		cleanupEffects( true )
+	end, 1)
 	actionComplete()
 end
 for i=1,10 do
