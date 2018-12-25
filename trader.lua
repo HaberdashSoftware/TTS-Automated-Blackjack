@@ -125,6 +125,8 @@ function spawnObject( item, c, spawnAs )
 	end, 0)
 end
 function buyItem( data, c )
+	if CooldownTime and CooldownTime>os.time() then return end
+	
 	if not data.item then
 		broadcastToColor( "Something went wrong! (Item no longer exists)", c, {1,0.2,0.2} )
 		return
@@ -175,6 +177,10 @@ function buyItem( data, c )
 		return
 	end
 	
+	-- Cooldown to give objects a chance to be destroyed
+	CooldownTime = os.time() + 0.25
+	Wait.frames(function() CooldownTime = nil end, 1) -- Clear cooldown after 1 frames, time value is a failsafe
+	
 	spawnObject( data.item, c, data.spawnAs )
 end
 
@@ -196,7 +202,7 @@ function processCostAll( c, data, set )
 		for i=1,#zone do
 			local item = zone[i]
 			local name = item.getName():match("^%s*(.-)%s*$") or item.getName()
-			if missingCost[name] and missingCost[name]>0 and item.interactable and not (item.getLock()) then
+			if item and not (item==nil) and missingCost[name] and missingCost[name]>0 and item.interactable and not (item.getLock()) then
 				local count = item.getQuantity()
 				if count==-1 then count = 1 end
 				
