@@ -193,11 +193,17 @@ function makeButtons()
 		buttons[row] = {}
 		
 		for column = 1,#powerupsTable[row] do
-			local count = numPowerups[powerupsTable[row][column]] or 0
+			local name = powerupsTable[row][column]
+			local obj = getPowerupObject(name)
+			
+			local tooltip = obj and ("%s\n\n%s"):format(tostring(name), tostring(obj.getDescription()):gsub("[Cc]ollectable\n[Ss]et: Powerups\n\n","") ) or tostring(name)
+			tooltip = tooltip:gsub("%s*$", ""):gsub("^%s*", "") or tooltip
+			
+			local count = numPowerups[name] or 0
 			self.createButton({
-				label="", click_function="doDeploy_"..tostring(powerupsTable[row][column]), function_owner=self,
+				label="", click_function="doDeploy_"..tostring(name), function_owner=self,
 				position={startPos+(column-1),0.1,rowPos}, rotation={0,0,0}, width=450, height=500, font_size=150,
-				color = count ==0 and {r=1,g=0,b=0, a=0.5} or {r=0,g=1,b=0, a=0.5}, tooltip=tostring(powerupsTable[row][column])
+				color = count ==0 and {r=1,g=0,b=0, a=0.5} or {r=0,g=1,b=0, a=0.5}, tooltip=tooltip,
 			})
 			
 			-- Drop-shadow counter text. There's no way to draw text directly, this will hit performance.
@@ -248,30 +254,8 @@ function deployPowerup(name)
 		local data = numPowerups[name]
 		local pos = getDeployPosition()
 		
-		local chosenObject
-		local powerupTable = Global.getTable("powerupTable")
-		if (powerupTable) and #powerupTable>0 then
-			for i=1,#powerupTable do
-				local chosenPowerup = powerupTable[i]
-				local obj = getObjectFromGUID(chosenPowerup[1])
-				
-				if obj and obj.getName()==name then
-					chosenObject = obj
-				end
-			end
-		end
-		if not chosenObject then
-			for _,obj in pairs(getAllObjects()) do
-				if obj.getLock() and obj.getName()==name then
-					chosenObject = obj
-					
-					break
-				end
-			end
-		end
-		if not chosenObject then
-			return false
-		end
+		local chosenObject = getPowerupObject(name)
+		if not chosenObject then return false end
 		
 		local params = {}
 		params.position = getDeployPosition()
@@ -301,6 +285,42 @@ function deployPowerup(name)
 	
 	return false
 end
+
+local storedPowerupObjects = {}
+function getPowerupObject( name )
+	if storedPowerupObjects[name] and not (storedPowerupObjects==nil) then
+		return storedPowerupObjects[name]
+	end
+	
+	local chosenObject
+	
+	local powerupTable = Global.getTable("powerupTable")
+	if (powerupTable) and #powerupTable>0 then
+		for i=1,#powerupTable do
+			local chosenPowerup = powerupTable[i]
+			local obj = getObjectFromGUID(chosenPowerup[1])
+			
+			if obj and obj.getName()==name then
+				chosenObject = obj
+			end
+		end
+	end
+	if not chosenObject then
+		for _,obj in pairs(getAllObjects()) do
+			if obj.getLock() and obj.getName()==name then
+				chosenObject = obj
+				
+				break
+			end
+		end
+	end
+	if not chosenObject then return end
+	
+	storedPowerupObjects[name] = chosenObject
+	
+	return chosenObject
+end
+
 function deployQueue(name, col)
 	if not name then return end
 	if col and not Player[col].admin then
