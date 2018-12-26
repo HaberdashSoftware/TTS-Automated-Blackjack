@@ -288,7 +288,7 @@ end
 
 local storedPowerupObjects = {}
 function getPowerupObject( name )
-	if storedPowerupObjects[name] and not (storedPowerupObjects==nil) then
+	if storedPowerupObjects[name] and not (storedPowerupObjects[name]==nil) then
 		return storedPowerupObjects[name]
 	end
 	
