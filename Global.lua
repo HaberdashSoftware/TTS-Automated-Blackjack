@@ -976,6 +976,8 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 	["Reset Timer"] = function( setTarget, powerup, setUser )
 		resetTimer(3)
 		destroyObject(powerup)
+		
+		return true
 	end,
 	["Card Mod"] = function( setTarget, powerup, setUser )
 		if roundStateID~=2 and roundStateID~=3 then return end
