@@ -10,7 +10,7 @@ function bonusRoundActivate(o,c)
 	if Global.getVar("activateBonus") then Global.Call("forwardFunction", {function_name="activateBonus", data={self}} ) end
 end
 
-bonusDesc = "Every player hand starts with a single Royal or Ace.\n\n"
+bonusDesc = "Every player hand starts with a single face card or Ace.\n\n"
 
 IsActive = false
 RoundsRemaining = 5
