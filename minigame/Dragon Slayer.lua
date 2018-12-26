@@ -105,7 +105,107 @@ local sortedClasses = {}
 for k in pairs(classData) do table.insert(sortedClasses, k) end
 table.sort(sortedClasses)
 
-
+local DragonHeartPowerup = [[-- Unique powerup from Dragon's Lair
+local objData = {
+	scale = {0.72,0.72,0.72},
+	color = {r=1,g=1,b=1},
+	mesh = {mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/o9e0zob.png", material=1, specular_intensity=0.05, specular_sharpness=3, type=1},
+}
+local function doAddCard(user, target, powerup, name, desc, image)
+	local newMesh = {}
+	for k,v in pairs(objData.mesh) do newMesh[k]=v end
+	newMesh.diffuse = image or newMesh.diffuse
+	
+	local newObj = spawnObject({type = "Custom_Model"})
+	newObj.setCustomObject(newMesh)
+	
+	local figurines = #(Global.call( "forwardFunction", {function_name="findFigurinesInZone", data={target.zone}} ) or {}) + 1
+	local setPos = Global.call( "forwardFunction", {function_name="findPowerupPlacement", data={target.zone, figurines}} ) or target.zone.getPosition()
+	newObj.setPosition(setPos)
+	
+	newObj.setRotation( {0,0,0} )
+	newObj.setLock( true )
+	
+	newObj.setName(name or "<N/A>")
+	newObj.setDescription( desc or "" )
+	newObj.setScale( objData.scale or {1,1,1} )
+	newObj.setColorTint( stringColorToRGB(user.color) or {1,1,1} )
+end
+local effect = {
+	function(userSet, targetSet, pwup) -- Dragon's Luck (Seven)
+		printToAll("Powerup event: " ..userSet.color.. " has consumed a Dragon Heart and received Dragon's Luck!", {0.5,0.5,1})
+		
+		doAddCard(userSet, targetSet, pwup, "Dragon's Lucky Number", "You feel the dragon's luck wash over you.\n\n+7 to your hand.", "https://i.imgur.com/U99uqPB.png")
+	end,
+	function(userSet, targetSet, pwup) -- Dragon's Blood (Joker)
+		printToAll("Powerup event: " ..userSet.color.. " has consumed a Dragon Heart and received Dragon's Blood!", {0.5,0.5,1})
+		
+		doAddCard(userSet, targetSet, pwup, "Dragon Blood", "The Dragon's blood courses through your veins.\n\nNothing can defeat you!", "https://i.imgur.com/L5NYlqv.png")
+	end,
+	function(userSet, targetSet, pwup) -- Dragon's Hoard (6 card 21)
+		printToAll("Powerup event: " ..userSet.color.. " has consumed a Dragon Heart and found the Dragon's Hoard!", {0.5,0.5,1})
+		
+		Global.call( "forwardFunction", {function_name="clearCards", data={targetSet.zone}} )
+		
+		local pos = pwup.getPosition()
+		local allDecks = Global.getVar("deckBag").takeObject({pos.x, pos.y+5, pos.z})
+		allDecks.shuffle()
+		local deck = allDecks.takeObject({pos.x, pos.y+6, pos.z})
+		deck.shuffle()
+		allDecks.destruct()
+		
+		for n,card in ipairs({"Ace","Two","Three","Four","Five","Six"}) do
+			local deckCards = deck.getObjects()
+			
+			-- Find Card
+			local foundCard
+			for i=1,#deckCards do
+				if deckCards[i].nickname==card then
+					foundCard = deck.takeObject({index=deckCards[i].index, position={pos.x, pos.y+8, pos.z}})
+					break
+				end
+			end
+			
+			if foundCard then
+				local pos = Global.call( "forwardFunction", {function_name="findCardPlacement", data={targetSet.zone,n}} )
+				
+				-- Position Ace
+				foundCard.setPosition(pos)
+				foundCard.setRotation({0,0,0})
+				
+				Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={foundCard, {targetPos=pos, set=set, isStarter=set, flip=true}}} )
+				
+				foundCard.setLock(true)
+				foundCard.interactable = false
+			end
+		end
+		
+		destroyObject(deck)
+	end
+}
+function powerupUsed( d )
+	if Global.getVar("roundStateID")~=2 and Global.getVar("roundStateID")~=3 then return end
+	
+	effect[math.random(1,#effect)](d.setUser, d.setTarget, d.powerup)
+	
+	destroyObject(d.powerup)
+	
+	if d.setTarget.color=="Dealer" and Global.getVar("dealersTurn") then
+		startLuaCoroutine( Global, "DoDealersCards" )
+	end
+	
+	return false
+end
+function onLoad()
+	local effectTable = Global.getTable("powerupEffectTable")
+	effectTable[self.getName()] = {who="Self Only", effect="DragonHeart"}
+	Global.setTable("powerupEffectTable", effectTable)
+	
+	local tbl = Global.getTable("cardNameTable")
+	tbl["Dragon's Lucky Number"] = 7
+	tbl["Dragon Blood"] = 12
+	Global.setTable("cardNameTable", tbl)
+end]]
 local rewardData = {
 	["1x Payout"] = {
 		icon = "https://i.imgur.com/6L2vk7M.png?1",
@@ -124,13 +224,19 @@ local rewardData = {
 	},
 	["Reward Token"] = {
 		icon = "https://i.imgur.com/5NJpNnn.png",
-		spawnObject = {name="Reward token", scale={0.75,0.75,0.75}, color={190/255,190/255,190/255}, mesh={mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/5NJpNnn.png", material=2, specular_intensity=0.1, specular_sharpness=8, type=5}},
+		spawnObject = {name="Reward token", scale={0.75,0.75,0.75}, color={r=190/255,g=190/255,b=190/255}, mesh={mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/5NJpNnn.png", material=2, specular_intensity=0.1, specular_sharpness=8, type=5}},
 		chance = 10,
 	},
 	["Royal Token"] = {
 		icon = "https://i.imgur.com/zV3wNQ5.png",
-		spawnObject = {name="Royal token", scale={0.75,0.75,0.75}, color={222/255,180/255,68/255}, mesh={mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/zV3wNQ5.png", material=2, specular_intensity=0.1, specular_sharpness=8, type=5}},
+		spawnObject = {name="Royal token", scale={0.75,0.75,0.75}, color={r=222/255,g=180/255,b=68/255}, mesh={mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/zV3wNQ5.png", material=2, specular_intensity=0.1, specular_sharpness=8, type=5}},
 		chance = 5,
+	},
+	["Dragon's Heart"] = {
+		icon = "https://i.imgur.com/o9e0zob.png",
+		spawnObject = {name="Dragon's Heart", desc="[b]Unique Powerup[/b]\nLooted from Dragon's Lair\n\nUse on your own hand to consume the heart and receive a random effect.", scale={0.72,0.72,0.72}, color={r=1,g=1,b=1}, mesh={mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/o9e0zob.png", material=1, specular_intensity=0.05, specular_sharpness=3, type=1}},
+		spawnScript = DragonHeartPowerup,
+		chance = 2,
 	},
 	["Rupee"] = {
 		icon = "https://i.imgur.com/nyCqLZ3.png",
@@ -1449,7 +1555,7 @@ function doPayout()
 		local spawnPos = set.zone.getPosition()
 		local payout = 0
 		
-		local protection = seated[set.color] and ("%s - %s\n"):format(Player[set.color].steam_id, Player[set.color].steam_name) or ""
+		local protection = seated[set.color] and ("%s - %s\n\n"):format(Player[set.color].steam_id, Player[set.color].steam_name) or ""
 		for i, object in ipairs(zoneObjectList) do
 			if (object.tag == "Figurine" and object.getLock()) then
 				local data = rewardData[object.getName()]
@@ -1469,6 +1575,10 @@ function doPayout()
 						newObj.setDescription( protection .. (data.desc or "") )
 						newObj.setScale( data.spawnObject.scale or {1,1,1} )
 						newObj.setColorTint(data.spawnObject.color or {r=1,g=1,b=1})
+						
+						if data.spawnScript then
+							newObj.setLuaScript( data.spawnScript )
+						end
 						
 						spawnPos.y = spawnPos.y + 0.15
 					end

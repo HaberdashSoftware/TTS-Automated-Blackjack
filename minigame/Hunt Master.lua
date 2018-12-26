@@ -5,7 +5,45 @@ local objects = {
 	["Cup"] = {mesh="https://paste.ee/r/3JPfK", diffuse="http://www.littlewebhut.com/images/woodsample.jpg"},
 	["Wolf"] = {mesh="https://drive.google.com/uc?export=download&id=0B60T7NhNNqG_SU1tOHhRZWVjd0U", specular_color={1,0,0}},
 	["Deer"] = {mesh="https://drive.google.com/uc?export=download&id=0B60T7NhNNqG_WXJwci1TLTJkRUU", specular_color={0,1,0}},
+	["Venison"] = {mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/kUkMh2F.png", material=1, specular_intensity=0.05, specular_sharpness=3, type=1},
 }
+local VenisonScript = [[-- Unique powerup from Hunt Master
+function powerupUsed( d )
+	if d.setTarget.value>=21 or d.setTarget.value<=0 then
+		broadcastToColor("This powerup can only be used on hands with less than 21.", d.setUser.color, {1,0.5,0.5})
+		return false
+	end
+	
+	math.randomseed( os.time() )
+	local value = math.floor(math.random(1, math.min(20, 21-d.setTarget.value)))
+	
+	local clone = d.powerup.clone(params)
+	clone.setLock(false) -- We'll use lock status to determine whether it was used successfully
+	clone.setName( ("%s (+%i)"):format(d.powerup.getName(), value) )
+	clone.setLuaScript("")
+	
+	Global.call( "forwardFunction", {function_name="activatePowerupEffect", data={"Card Mod", d.setTarget, clone, d.setUser}} ) -- Hijack function
+	
+	if clone.getLock() then -- Success!
+		destroyObject(d.powerup)
+	else -- Failure!
+		destroyObject(clone)
+	end
+	
+	return false -- In any case, tell the global script we failed. This prevents double messages.
+end
+function onLoad()
+	local effectTable = Global.getTable("powerupEffectTable")
+	effectTable[self.getName()] = {who="Anyone", effect="Venison"}
+	Global.setTable("powerupEffectTable", effectTable)
+	
+	local tbl = Global.getTable("cardNameTable")
+	tbl[self.getName()] = 1 -- Failsafe is +1, because 0 counts as an ace
+	for i=1,20 do
+		tbl[self.getName().." (+"..tostring(i)..")"] = i
+	end
+	Global.setTable("cardNameTable", tbl)
+end]]
 local results = {
 	[0] = function(col)
 		local set = Global.call( "forwardFunction", {function_name="findObjectSetFromColor", data={col}} )
@@ -36,6 +74,22 @@ local results = {
 		Global.call( "forwardFunction", {function_name="processPayout", data={set.zone, 25, true}} )
 		
 		printToAll("Impossible! "..tostring(col).." has hunted the deer and claimed a 25:1 payout.", {0.5,1,0.25})
+		
+		local spawnPos = set.zone.getPosition()
+		local protection = Player[col].seated and ("%s - %s\n\n"):format(Player[col].steam_id, Player[col].steam_name) or ""
+		
+		local powerup = spawnObject({type = "Custom_Model"})
+		powerup.setCustomObject(objects["Venison"])
+		
+		powerup.setPosition(spawnPos)
+		powerup.setRotation({0,0,0})
+		powerup.setLock(false)
+		
+		powerup.setName("Venison")
+		powerup.setScale( {0.72,0.72,0.72} )
+		powerup.setDescription( protection .. "[b]Unique Powerup[/b]\nAwarded to Hunt Masters.\n\nUse on any hand with a value of less than 21 to add a random value to that hand. Will not cause a player to bust." )
+		
+		powerup.setLuaScript( VenisonScript )
 	end,
 }
 
