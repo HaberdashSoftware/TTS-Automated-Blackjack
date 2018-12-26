@@ -12,8 +12,7 @@ function powerupUsed( d )
 	
 	if d.setTarget.color=="Dealer" then
 		if d.setTarget.value==69 or (d.setTarget.count==4 and d.setTarget.value<=21) then
-			local settings = Global.getTable("hostSettings")
-			local MultiHelp = settings.bMultiHelpRewards and (settings.bMultiHelpRewards.getDescription()=="true")
+			local MultiHelp = Global.call("GetSetting", {"Powerups.MultiHelp", true})
 			
 			local sets = Global.getTable("objectSets")
 			for i=2,#sets do

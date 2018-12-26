@@ -104,8 +104,8 @@ function findNextPlayer()
 	if userCol==nil then -- Nobody joined the round
 		endGame()
 	else -- Give time for powerups
-		local hostSettings = Global.getTable("hostSettings")
-		Global.call( "forwardFunction", {function_name="setRoundState", data={3, hostSettings.iTimePowerup and hostSettings.iTimePowerup.getValue() or 20}} )
+		local time = Global.call("GetSetting", {"Rounds.PowerupsTime", 20})
+		Global.call( "forwardFunction", {function_name="setRoundState", data={3, time}} )
 	end
 end
 
@@ -260,8 +260,8 @@ function endGame()
 	self.interactable = true
 	self.setLock(false)
 	
-	local hostSettings = Global.getTable("hostSettings")
-	Global.call( "forwardFunction", {function_name="setRoundState", data={1, hostSettings.iTimeBet and hostSettings.iTimeBet.getValue() or 30}} )
+	local time = Global.call("GetSetting", {"Rounds.BetTime", 30})
+	Global.call( "forwardFunction", {function_name="setRoundState", data={1, time}} )
 	coroutineQuit = true
 	
 	Global.call( "forwardFunction", {function_name="newDeck", data={}} )

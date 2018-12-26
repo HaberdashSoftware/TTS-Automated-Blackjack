@@ -18,7 +18,7 @@ function onDeploy()
 	Expired = false
 end
 function preRoundStart()
-	if Expired then return end
+	if Expired or not Global.call("GetSetting", {"Minigame.Automated", true}) then return end
 	Expired = true
 	self.setColorTint({r=0.05,g=0.05,b=0.05})
 	self.setDescription("Ended")

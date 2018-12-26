@@ -14,7 +14,7 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 			local v = Global.getTable("cardNameTable")[d.powerup.getName()] or 0
 			
 			if (d.setTarget.value>dealerValue and v<=dealerValue) or (d.setTarget.value==dealerValue and v<dealerValue) then
-				if d.setUser.value<d.setTarget.value and (Global.getTable("hostSettings").bHostilePowerups and Global.getTable("hostSettings").bHostilePowerups.getDescription()=="false") then
+				if d.setUser.value<d.setTarget.value and not Global.call("GetSetting", {"Powerups.AllowHostile", true}) then
 					broadcastToColor("This powerup cannot be used to make another player lose.", setUser.color, {1,0.5,0.5})
 					
 					return false

@@ -11,6 +11,15 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 		return
 	end
 	
+	if not Global.call("GetSetting", {"Powerups.AllowHostile", true}) then
+		local dealerValue = sets[1].value
+		local targetVal = d.setTarget.value
+		if ((d.setTarget.UserColor or d.setTarget.color) ~= d.setUser.color) and ((targetVal>=dealerValue and v<=21) or (targetVal>=68 and targetVal<=72)) then
+			broadcastToColor("This powerup cannot be used to make another player lose.", setUser.color, {1,0.5,0.5})
+			return false
+		end
+	end
+	
 	-- Check for viable other hands
 	local handSets = {}
 	for i=2,#sets do
@@ -133,17 +142,16 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 	end
 	
 	-- Give rewards
-	local settings = Global.getTable("hostSettings")
-	local MultiHelp = settings.bMultiHelpRewards and (settings.bMultiHelpRewards.getDescription()=="true") -- Allow multiple rewards for one powerp use?
+	local MultiHelp = Global.call("GetSetting", {"Powerups.MultiHelp", true}) -- Allow multiple rewards for one powerp use?
 	for i=1,rewards do 
 		Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} )
 		if not MultiHelp then break end -- One reward max, exit loop
 	end
 	
 	-- Restart dealer if appropriate
-	-- if d.setTarget.color=="Dealer" and Global.getVar("dealersTurn") then
-		-- startLuaCoroutine( Global, "DoDealersCards" )
-	-- end
+	if d.setTarget.color=="Dealer" and Global.getVar("dealersTurn") then
+		startLuaCoroutine( Global, "DoDealersCards" )
+	end
 	
 	return true
 end

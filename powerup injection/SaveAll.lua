@@ -5,8 +5,7 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 	local sets = Global.getTable("objectSets")
 	local dlr = sets[1].value
 	
-	local settings = Global.getTable("hostSettings")
-	local MultiHelp = settings.bMultiHelpRewards and (settings.bMultiHelpRewards.getDescription()=="true")
+	local MultiHelp = Global.call("GetSetting", {"Powerups.MultiHelp", true})
 	
 	local found = false
 	local foundOther = false

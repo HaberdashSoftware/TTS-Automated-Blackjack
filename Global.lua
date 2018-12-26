@@ -271,6 +271,33 @@ function lockObjects()
 	end
 end
 
+function GetSetting( var, default )
+	if type(var)=="table" then -- Set up var (request from other object)
+		var = var.index or var.id or var.setting or var[1]
+		default = var.default
+		if default==nil then default = var[2] end
+	end
+	if not (var and type(var)=="string") then return default end -- No var, return default
+	
+	if (not BlackjackSettingsObject) or (BlackjackSettingsObject==nil) then
+		for _,obj in pairs(getAllObjects()) do
+			if obj.getLock() and obj.getName()=="Blackjack Settings" and obj.getVar("getSetting") and not (obj==nil) then
+				BlackjackSettingsObject = obj
+				break
+			end
+		end
+		
+		if (not BlackjackSettingsObject) or (BlackjackSettingsObject==nil) then
+			return default -- No settings object, return default
+		end
+	end
+	
+	local value = BlackjackSettingsObject.Call("getSetting", {index=var})
+	if value==nil then return default end -- Unset, return default
+	
+	return value -- Return value
+end
+
 function onObjectPickedUp(color, object)
 	if color ~= "Black" and not Player[color].promoted and not Player[color].host then
 		if object.getPosition()[3] < -16 then
@@ -374,7 +401,7 @@ function onObjectDropped(colorOfDropper, droppedObject)
 						end
 						
 						if setCol:sub(1,5):lower()~="split" and Player[setCol] and Player[setCol].seated then
-							if (hostSettings.bAllowChipTrading and hostSettings.bAllowChipTrading.getDescription()=="true") then
+							if GetSetting("Chips.AllowTrading", false) then
 								obj.setDescription( Player[setCol].steam_id .." - ".. Player[setCol].steam_name )
 							elseif not Player[colorOfDropper].admin then
 								local ownSet = findObjectSetFromColor(colorOfDropper)
@@ -528,20 +555,20 @@ function doPrestigeDestructionBagCallback(obj, data)
 	end
 end
 function doPrestigeDestruction(set)
-	local destroyChips = hostSettings.bPrestigeClearChip and hostSettings.bPrestigeClearChip.getDescription()=="true"
-	local destroyPowerups = hostSettings.bPrestigeClearPower and hostSettings.bPrestigeClearPower.getDescription()=="true"
+	local destroyChips = GetSetting("Prestige.ClearChips", true)
+	local destroyPowerups = GetSetting("Prestige.ClearPowerups", true)
 	
 	return doChipDestruction( set, destroyChips, destroyPowerups, true )
 end
 function doBankruptDestruction(set)
-	local destroyChips = hostSettings.bBankruptClearChip and hostSettings.bBankruptClearChip.getDescription()=="true"
-	local destroyPowerups = hostSettings.bBankruptClearPower and hostSettings.bBankruptClearPower.getDescription()=="true"
-	local destroyPrestige = hostSettings.bBankruptClearPrestige and hostSettings.bBankruptClearPrestige.getDescription()=="true"
+	local destroyChips = GetSetting("Bankruptcy.ClearChips", true)
+	local destroyPowerups = GetSetting("Bankruptcy.ClearPowerups", true)
+	local destroyPrestige = GetSetting("Bankruptcy.ClearPrestige", false)
 	
 	return doChipDestruction( set, destroyChips, destroyPowerups, destroyPrestige )
 end
 function doChipDestruction( set, destroyChips, destroyPowerups, destroyPrestige )
-	if destroyChips or destroyPowerups then
+	if destroyChips or destroyPowerups or destroyPrestige then
 		local zoneObjects = set.zone.getObjects()
 		local tableObjects = set.tbl.getObjects()
 		local prestigeObjects = set.prestige.getObjects()
@@ -637,7 +664,7 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 				local v = cardNameTable[powerup.getName()] or 0
 				
 				if (setTarget.value>dealerValue and v<=dealerValue) or (setTarget.value==dealerValue and v<dealerValue) then
-					if setUser.value<setTarget.value and (hostSettings.bHostilePowerups and hostSettings.bHostilePowerups.getDescription()=="false") then
+					if setUser.value<setTarget.value and not GetSetting("Powerups.AllowHostile", true) then
 						broadcastToColor("This powerup cannot be used to make another player lose.", setUser.color, {1,0.5,0.5})
 						
 						return false
@@ -726,7 +753,7 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 					if dealerValue>0 and dealerValue<=21 and (setUser.value>dealerValue and setTarget.value<=dealerValue) or (setUser.value==dealerValue and setTarget.value<dealerValue) then
 						giveReward( "Help", setUser.zone )
 					end
-				elseif setUser.value<setTarget.value and (hostSettings.bHostilePowerups and hostSettings.bHostilePowerups.getDescription()=="false") then
+				elseif setUser.value<setTarget.value and not GetSetting("Powerups.AllowHostile", true) then
 					broadcastToColor("This powerup cannot be used to make another player lose.", setUser.color, {1,0.5,0.5})
 					
 					return false
@@ -784,7 +811,7 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 		
 		local cardsInZone = findCardsInZone(setTarget.zone)
 		if #cardsInZone == 2 then
-			if setTarget.color=="Dealer" and hostSettings.bRevealIsHelp and hostSettings.bRevealIsHelp.getDescription()=="true" then
+			if setTarget.color=="Dealer" and GetSetting("Powerups.RevealIsHelp", true) then
 				giveReward( "Help", setUser.zone )
 			end
 			
@@ -815,7 +842,7 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 					if s~=setUser and s.UserColor~=setUser.color and (s.value>0 or s.count>0) and s.value<=21 and ((s.value<setTarget.value and s.value>=newValue) or (s.value==setTarget.value and s.value>newValue)) then -- Helped someone
 						giveReward( "Help", setUser.zone )
 						
-						if not (hostSettings.bMultiHelpRewards and hostSettings.bMultiHelpRewards.getDescription()=="true") then break end
+						if not GetSetting("Powerups.MultiHelp", true) then break end
 					end
 				end
 			end
@@ -840,7 +867,7 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 						if s~=setUser and s.UserColor~=setUser.color and (s.value>0 or s.count>0) and s.value<=21 and s.value<=setTarget.value then -- Helped someone
 							giveReward( "Help", setUser.zone )
 							
-							if not (hostSettings.bMultiHelpRewards and hostSettings.bMultiHelpRewards.getDescription()=="true") then break end
+							if not GetSetting("Powerups.MultiHelp", true) then break end
 						end
 					end
 				end
@@ -855,7 +882,7 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 			else
 				local dealerValue = objectSets[1].value
 				if dealerValue<=21 and dealerValue<setTarget.value and (setTarget.value<=21 or setTarget.value>=67 and setTarget.value<=72) then
-					if (hostSettings.bHostilePowerups and hostSettings.bHostilePowerups.getDescription()=="false") then
+					if not GetSetting("Powerups.AllowHostile", true) then
 						broadcastToColor("This powerup cannot be used on a winning player.", setUser.color, {1,0.5,0.5})
 						
 						return false
@@ -962,7 +989,7 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 						local s = objectSets[i]
 						if (s~=setUser and s.SplitUser~=setUser) and (s.value>0 or s.count>0) and s.value<=setTarget.value then
 							giveReward( "Help", setUser.zone )
-							if not (hostSettings.bMultiHelpRewards and hostSettings.bMultiHelpRewards.getDescription()=="true") then break end
+							if not GetSetting("Powerups.MultiHelp", true) then break end
 						end
 					end
 				elseif setTarget.count<4 and setTarget.value<=21 and setTarget.value>0 then -- Not bust before this powerup
@@ -973,7 +1000,7 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 							local s = objectSets[i]
 							if (s~=setUser and s.SplitUser~=setUser) and (s.value>0 or s.count>0) and s.value<=setTarget.value then
 								giveReward( "Help", setUser.zone )
-								if not (hostSettings.bMultiHelpRewards and hostSettings.bMultiHelpRewards.getDescription()=="true") then break end
+								if not GetSetting("Powerups.MultiHelp", true) then break end
 							end
 						end
 					else
@@ -981,7 +1008,7 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 							local s = objectSets[i]
 							if (s~=setUser and s.SplitUser~=setUser) and (s.value>0 or s.count>0) and s.value<=21 and ((s.value<setTarget.value and s.value>=newValue) or (s.value==setTarget.value and s.value>newValue)) then -- Helped someone
 								giveReward( "Help", setUser.zone )
-								if not (hostSettings.bMultiHelpRewards and hostSettings.bMultiHelpRewards.getDescription()=="true") then break end
+								if not GetSetting("Powerups.MultiHelp", true) then break end
 							end
 						end
 					end
@@ -992,7 +1019,7 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 						local s = objectSets[i]
 						if (s~=setUser and s.SplitUser~=setUser) and (s.value>0 or s.count>0) and s.value<=21 and s.value>=newValue then -- Helped someone
 							giveReward( "Help", setUser.zone )
-							if not (hostSettings.bMultiHelpRewards and hostSettings.bMultiHelpRewards.getDescription()=="true") then break end
+							if not GetSetting("Powerups.MultiHelp", true) then break end
 						end
 					end
 				end
@@ -1004,7 +1031,7 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 					return false
 				end
 				if setTarget.color~=setUser.color and setTarget.UserColor~=setUser.color then
-					if (hostSettings.bHostilePowerups and hostSettings.bHostilePowerups.getDescription()=="false") then
+					if not GetSetting("Powerups.AllowHostile", true) then
 						if setTarget.value>=dealer.value and setTarget.value<=21 and newValue<dealer.value then
 							broadcastToColor("This powerup cannot be used to make another player lose.", setUser.color, {1,0.5,0.5})
 							
@@ -1041,7 +1068,7 @@ function activatePowerupFailedCallback(data)
 	if not (data.obj and data.obj==nil) then -- No specific null check I know of, but this check seems to work
 		if data.obj.getName():lower()=="royal token" or data.obj.getName():lower()=="reward token" then return end
 		
-		if hostSettings.bPowerupsAlwaysFifthCard and hostSettings.bPowerupsAlwaysFifthCard.getDescription()=="true" then
+		if GetSetting("Powerups.FifthCard", true) then
 			if data.target.count~=4 then return end
 			if (data.target.value<=21 and data.target.value>=objectSets[1].value) or (data.target.value>=68 and data.target.value<=72) then return end -- No effect
 			if data.user.color~=data.target.color and data.user.color~=data.target.UserColor then
@@ -1208,8 +1235,7 @@ function DoDealersCards()
 	findCardsToCount()
 	waitTime(0.05)
 	
-	local standValue = 17
-	if hostSettings.iDealerStand then standValue = hostSettings.iDealerStand.getValue() end
+	local standValue = GetSetting("Hands.DealerStandValue", 17)
 	
 	while (set.value<standValue and set.value<=21 and set.value>0 and set.count<5) do
 		if not dealingDealersCards then return end
@@ -1242,7 +1268,7 @@ function DoDealersCards()
 	
 	dealingDealersCards = false
 	
-	setRoundState( 3, hostSettings.iTimePowerup and hostSettings.iTimePowerup.getValue() or 20 )
+	setRoundState( 3, GetSetting("Rounds.PowerupsTime", 20) )
 	
 	return 1
 end
@@ -1353,8 +1379,9 @@ end
 function rupeePull(targetZone)
 	local set = findObjectSetFromZone(targetZone)
 	
-	if hostSettings.bRupeeLimit and hostSettings.bRupeeLimit.getDescription()=="true" and hostSettings.iRupeeMax and not withinChipLimit(targetZone, hostSettings.iRupeeMax:getValue()) then
-		broadcastToColor("Error: Could not pull rupee. Chip limit is "..tostring(hostSettings.iRupeeMax:getValue()).." and bet bags cannot be used.", set.color, {1,0.25,0.25})
+	local rupeeLimit = GetSetting("Rupee.MaxChips", 0)
+	if rupeeLimit>0 and not withinChipLimit(targetZone, rupeeLimit) then
+		broadcastToColor("Error: Could not pull rupee. Chip limit is "..tostring(rupeeLimit).." and bet bags cannot be used.", set.color, {1,0.25,0.25})
 		
 		return false
 	end
@@ -1518,7 +1545,7 @@ function addCardValues(hand, cardNames, facedownCount, facedownCard)
 				if aceCount == 1 and (tenCount == 1 and objectSets[hand].count == 2) then
 					value = 69
 					stopCount = true
-				elseif hand == 1 and facedownCount < 1 and (hostSettings.bDealerAceIsOne and hostSettings.bDealerAceIsOne.getDescription()=="true") then
+				elseif hand == 1 and facedownCount < 1 and GetSetting("Hands.DealerAceIsOne", true) then
 					value = value + 1
 				else
 					value = value + 11
@@ -1646,7 +1673,7 @@ function timerStart()
 				dealButtonPressed( nil, "Lua" )
 			elseif roundStateID==3 then
 				payButtonPressed( nil, "Lua" )
-			elseif roundStateID==2 and (not (inMinigame or dealersTurn)) and (hostSettings.bTurnLimit and hostSettings.bTurnLimit.getDescription()=="true") and not turnActive then
+			elseif roundStateID==2 and (not (inMinigame or dealersTurn)) and GetSetting("Rounds.TurnTimeLimit", 0)>0 and not turnActive then
 				turnActive = true -- Failsafe
 				if currentPlayerTurn then
 					local set = findObjectSetFromColor(currentPlayerTurn)
@@ -1670,7 +1697,7 @@ function timerStart()
 		
 		if roundStateID==2 and inMinigame and ((not minigame) or minigame==nil) then
 			printToAll("Minigame controller dissapeared! Resuming normal play...", {1,0,0})
-			setRoundState( 1, hostSettings.iTimeBet and hostSettings.iTimeBet.getValue() or 30 )
+			setRoundState( 1, GetSetting("Rounds.BetTime", 30) )
 			
 			for i, set in pairs(objectSets) do
 				-- Unlock Chips
@@ -2411,7 +2438,7 @@ function playerBankrupt(handler, color)
 		if count>=12 then
 			doChipDestruction(set, true, false)
 			
-			local destroyPrestige = hostSettings.bBankruptClearPrestige and hostSettings.bBankruptClearPrestige.getDescription()=="true"
+			local destroyPrestige = GetSetting("Bankruptcy.ClearPrestige", false)
 			
 			local starter = takeObjectFromContainer( set.tbl, "f3ea0f" )
 			local starterObjects = starter.getObjects()
@@ -2789,14 +2816,10 @@ function whoGoesFirst(table)
 end
 
 function beginTurnTimer(set, supressMessage)
-	if hostSettings.bTurnLimit and hostSettings.bTurnLimit.getDescription()=="true" then
+	if GetSetting("Rounds.TurnTimeLimit", 0)>0 then
 		turnActive = false
 		
-		local turnTime = 10
-		if hostSettings.iTurnTime then
-			if hostSettings.iTurnTime.getValue()<10 then hostSettings.iTurnTime.setValue(10) end
-			turnTime = hostSettings.iTurnTime.getValue()
-		end
+		local turnTime = GetSetting("Rounds.TurnTimeLimit", 30)
 		
 		setRoundState( 2, turnTime )
 		
@@ -2806,7 +2829,7 @@ function beginTurnTimer(set, supressMessage)
 	end
 end
 function endTurnTimer(set, force)
-	if force or (hostSettings.bTurnLimitEndsEarly and hostSettings.bTurnLimitEndsEarly.getDescription()=="true") then
+	if force or GetSetting("Rounds.TurnTimeLimitEnds", false) then
 		turnActive = true
 		
 		if roundTimer and roundTimer.getValue()>0 then
@@ -3012,7 +3035,7 @@ function createPlayerActions(btnHandler, simpleOnly)
 	local set = findObjectSetFromButtons( btnHandler )
 	local cards = findCardsInZone(set.zone)
 	if #cards==2 and cardNameTable[cards[1].getName()]==cardNameTable[cards[2].getName()] then
-		if cards[1].getName()==cards[2].getName() or (hostSettings.bSplitOnValue and hostSettings.bSplitOnValue.getDescription()=="true") then
+		if cards[1].getName()==cards[2].getName() or GetSetting("Hands.SplitOnValue", false) then
 			btnHandler.createButton({
 				label="Split", click_function="playerSplit", function_owner=nil,
 				position={-1, 0.25, -0.65}, rotation={0,0,0}, width=400, height=250, font_size=100
@@ -3085,13 +3108,13 @@ function passPlayerActions(zone)
 			currentPlayerTurn = "None"
 			revealHandZone(set.zone, true)
 			
-			if hostSettings.bTurnLimit and hostSettings.bTurnLimit.getDescription()=="true" and roundTimer then
+			if GetSetting("Rounds.TurnTimeLimit", 0)>0 and roundTimer then
 				roundTimer.setValue(0)
 				roundTimer.Clock.paused = false
 			end
 			break
 		elseif set.zone == zone then
-			if set.color:sub(1,5)=="Split" then
+			if set.color:sub(1,5)=="Split" and set.SplitUser then
 				local originalSet = set.SplitUser
 				
 				local betsInZone = #findBetsInZone(originalSet.zone)
@@ -3243,7 +3266,7 @@ function playerSplit(btnHandler, color)
 		
 		local cards = findCardsInZone(set.zone)
 		if #cards~=2 or cardNameTable[cards[1].getName()]~=cardNameTable[cards[2].getName()] then return end
-		if hostSettings.bSplitOnValue and hostSettings.bSplitOnValue.getDescription()=="false" and cards[1].getName()~=cards[2].getName() then return end
+		if (not GetSetting("Hands.SplitOnValue", false)) and cards[1].getName()~=cards[2].getName() then return end
 		
 		if not lockout then
 			endTurnTimer(set)
@@ -3295,7 +3318,7 @@ function payButtonPressed(o, color)
 			return
 		end
 		
-		setRoundState( 1, hostSettings.iTimeBet and hostSettings.iTimeBet.getValue() or 30 )
+		setRoundState( 1, GetSetting("Rounds.BetTime", 30) )
 		
 		if minigame and not (minigame==nil) then
 			destroyObject(minigame)
@@ -3432,7 +3455,7 @@ function calculatePayout(zone)
 		end
 	end
 	
-	local globalMultiplier = math.max(hostSettings.iMultiplyPayouts and hostSettings.iMultiplyPayouts.getValue() or 1, 1)
+	local globalMultiplier = math.max(GetSetting("Bet.Multiplier", 1), 1)
 	betMultiplier = (bonusGetPayoutMultiplier( set, betMultiplier ) or betMultiplier) * globalMultiplier
 	
 	return betMultiplier

@@ -21,8 +21,7 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 		
 		local foundPlayers = {}
 		
-		local settings = Global.getTable("hostSettings")
-		local MultiHelp = settings.bMultiHelpRewards and (settings.bMultiHelpRewards.getDescription()=="true")
+		local MultiHelp = Global.call("GetSetting", {"Powerups.MultiHelp", true})
 		for i=2,#sets do
 			local target = sets[i]
 			if target.color~=d.setUser.color then
