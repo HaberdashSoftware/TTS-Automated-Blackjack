@@ -273,9 +273,10 @@ end
 
 function GetSetting( var, default )
 	if type(var)=="table" then -- Set up var (request from other object)
-		var = var.index or var.id or var.setting or var[1]
 		default = var.default
 		if default==nil then default = var[2] end
+		
+		var = var.index or var.id or var.setting or var[1]
 	end
 	if not (var and type(var)=="string") then return default end -- No var, return default
 	
