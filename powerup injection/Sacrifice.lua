@@ -10,8 +10,7 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 	if #cardsInZone ~= 0 and (d.setTarget.value<=21 and (d.setTarget.value>=dlr or (dlr>21 and dlr~=69) or (d.setTarget.value>=68 and d.setTarget.value<=72))) then
 		local foundPlayers = 0
 		
-		local settings = Global.getTable("hostSettings")
-		local MultiHelp = settings.bMultiHelpRewards and (settings.bMultiHelpRewards.getDescription()=="true")
+		local MultiHelp = Global.call("GetSetting", {"Powerups.MultiHelp", true})
 		for i=2,#sets do
 			local target = sets[i]
 			if target.color~=d.setUser.color and target.UserColor~=d.setUser.color then
