@@ -96,7 +96,7 @@ function resetPosition()
 		self.interactable = false
 		
 		local pos = bonusZone.getPosition()
-		pos.y = pos.y - 1
+		pos.y = pos.y - 2
 		self.setPosition( pos )
 		self.setRotation( {0,0,0} )
 		self.setLock(true)

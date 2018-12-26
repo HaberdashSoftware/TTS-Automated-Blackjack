@@ -94,9 +94,9 @@ local classData = {
 			{name="Plant Growth", target = TARGET_ALLY, tooltip="Target player regenerates 1 health.\nPlayer deals 2 damage when attacked.\nPlayer's damage taken is reduced by 1.\nLasts for 4 rounds.", effects={
 				{ heal = 1, thorns = 2, def = 1, turns = 4, icon = "https://i.imgur.com/Xy7fag5.png" },
 			}},
-			{name="Purify", target = TARGET_ALLY, tooltip="Remove all debuffs from a player and yourself.", effects={
+			{name="Purify", target = TARGET_ALL, tooltip="Remove debuffs from all players.", effects={
 				{ purify = true, icon = "https://i.imgur.com/iKJuoEB.png" },
-				{ purify = true, icon = "https://i.imgur.com/iKJuoEB.png", target = TARGET_SELF },
+				-- { purify = true, icon = "https://i.imgur.com/iKJuoEB.png", target = TARGET_SELF },
 			}},
 		}
 	},
@@ -287,7 +287,7 @@ local dragonAttacks = {
 	function() -- Fire Breath
 		broadcastToAll( "The dragon breathes fire!", {0.7, 0.2, 0.2} )
 		
-		local effects = {burn=math.random(2,3), turns=3, icon="https://i.imgur.com/lMF59X2.png?1"}
+		local effects = {burn=math.random(2,3), turns=2, icon="https://i.imgur.com/lMF59X2.png?1"}
 		
 		local sets = Global.getTable("objectSets")
 		for i=1,#sets do
@@ -1126,6 +1126,8 @@ function doDragonAttacks( numAttacks )
 	end
 	
 	while (numAttacks>0 and #possibleAttacks>0) do
+		waitTime( 0.25 )
+		
 		local att = math.random(1,#possibleAttacks)
 		
 		dragonAttacks[ possibleAttacks[att] ]()
