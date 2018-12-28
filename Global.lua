@@ -3192,6 +3192,12 @@ function playerDouble(btnHandler, color)
 			return broadcastToColor("Error: It's not your turn.", color, {1,0.25,0.25})
 		end
 		
+		if set.value > 21 then
+			clearPlayerActions(set.zone)
+			passPlayerActions(set.zone)
+			return
+		end
+		
 		local cards = findCardsInZone(set.zone)
 		if #cards~=2 then clearPlayerActions(set.zone, true) return end
 		
