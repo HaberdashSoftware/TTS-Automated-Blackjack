@@ -1,9 +1,92 @@
 
+local PowerupScript = [=[-- Unique powerup from Cursed Deck
+local CardScript = [[function ChooseCard(o,c)
+	if c and ActivePlayer and (c~=ActivePlayer) and not Player[c].admin then
+		broadcastToColor("You did not use this powerup.", c, {1,0.5,0.5})
+		return
+	end
+	if not ActiveZone then
+		broadcastToColor("Error: Could not find zone.", c, {1,0.5,0.5})
+		return
+	end
+	
+	for _,v in pairs(ActiveZone.getObjects()) do
+		if v.tag=="Card" and v~=self and v.getName():sub(1,17)=="Deck's Blessing: " then
+			destroyObject(v)
+		end
+	end
+	
+	
+	local cardsInZone = Global.call( "forwardFunction", {function_name="findCardsInZone", data={ActiveZone}} )
+	local pos = Global.call( "forwardFunction", {function_name="findCardPlacement", data={ActiveZone, math.max(#cardsInZone-2, 1)}} )
+	
+	self.setPosition(pos)
+	self.clearButtons()
+	self.setName( self.getName():sub(18,-1) )
+	Global.setVar("lastCard", self)
+end]]
+function powerupUsed( d )
+	if Global.getVar("roundStateID")~=2 and Global.getVar("roundStateID")~=3 then return end
+	
+	if d.setTarget.count<=0 or d.setTarget.value<=0 then
+		broadcastToColor("Must use on a hand that is in play.", d.setUser.color, {1,0.5,0.5})
+		return
+	end
+	
+	local deck = Global.getVar("mainDeck")
+	if not deck then
+		broadcastToColor("Could not find deck.", d.setUser.color, {1,0.5,0.5})
+		return
+	end
+	if #deck.getObjects()<=10 then
+		broadcastToColor("Not enough cards in deck.", d.setUser.color, {1,0.5,0.5})
+		return
+	end
+	
+	d.powerup.destruct()
+	
+	local params = {}
+	params.position = {0, 2.5, 0}
+	params.rotation = {0, 0, 0}
+	params.smooth = false
+	
+	for i=1,3 do
+		params.position = Global.call( "forwardFunction", {function_name="findCardPlacement", data={d.setTarget.zone, 3+i}} )
+		params.position[2] = params.position[2] + 0.5
+		
+		local drawnCard = deck.takeObject(params)
+		drawnCard.setName( "Deck's Blessing: " .. drawnCard.getName() ) -- Don't count unless it's chosen
+		drawnCard.setLock( true )
+		
+		drawnCard.createButton({
+			label="Select", click_function="ChooseCard", function_owner=drawnCard,
+			position={-0.4, 1.1, -0.95}, rotation={0,0,0}, width=350, height=350, font_size=130
+		})
+		
+		drawnCard.setLuaScript( CardScript )
+		drawnCard.setVar( "ActivePlayer", d.setUser.color )
+		drawnCard.setVar( "ActiveZone", d.setTarget.zone )
+	end
+	
+	return true
+end
+function onLoad()
+	local effectTable = Global.getTable("powerupEffectTable")
+	effectTable[self.getName()] = {who="Self Only", effect="DecksBlessing"}
+	Global.setTable("powerupEffectTable", effectTable)
+end
+]=]
 local rewardData = {
 	["Reward"] = {name="Reward token", scale={0.75,0.75,0.75}, color={190/255,190/255,190/255}, mesh={mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/5NJpNnn.png", material=2, specular_intensity=0.1, specular_sharpness=8, type=5}},
 	["Royal"] = {name="Royal token", scale={0.75,0.75,0.75}, color={222/255,180/255,68/255}, mesh={mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/zV3wNQ5.png", material=2, specular_intensity=0.1, specular_sharpness=8, type=5}},
 	["Power"] = {name="Random powerup draw", scale={0.75,0.75,0.75}, color={1,1,1}, mesh={mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/BONyszA.png", material=1, specular_intensity=0.05, specular_sharpness=3, type=1}},
 	["Rupee"] = {name="Random rupee pull", scale={0.75,0.75,0.75}, color={1,1,1}, mesh={mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/nyCqLZ3.png", material=1, specular_intensity=0.05, specular_sharpness=3, type=1}},
+	["Special"] = {
+		name="Deck's Blessing",
+		desc="[b]Unique Powerup[/b]\nBlessed by the Cursed Deck\n\nUse on your own hand to to draw three cards. Choose one to keep, discard the others.",
+		script = PowerupScript,
+		scale={0.72,0.72,0.72}, color={r=1,g=1,b=1}, mesh={mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/522OFW6.png", material=1, specular_intensity=0.05, specular_sharpness=3, type=1}
+	},
 }
 
 -- Initialisation
@@ -181,7 +264,7 @@ function beginGame(_, col)
 	doCard(set.zone, cardNumber)
 	
 	local lastCard = Global.getVar("lastCard")
-	if lastCard and lastCard.getName() == "Cracked Skull" then
+	if lastCard and (lastCard.getName() == "Cracked Skull" or lastCard.getName() == "Refresh") then
 		findNextPlayer()
 		return
 	end
@@ -189,17 +272,61 @@ function beginGame(_, col)
 	playerButtons(set.btnHandler)
 end
 
-local function giveReward(typ, pos)
-	local obj = spawnObject({type = "Custom_Model", callback="resetObjectPosition", params={targetPos=pos}})
-	obj.setCustomObject(rewardData[typ].mesh)
+
+local objectsCache = {}
+function getObjectByName( name )
+	if objectsCache[name] and not (objectsCache[name]==nil) then
+		return storedPowerupObjects[name]
+	end
 	
-	obj.setPosition(pos)
-	obj.setRotation({0,0,0})
-	obj.setLock(false)
+	local chosenObject
+	for _,obj in pairs(getAllObjects()) do
+		if obj.getLock() and obj.getName()==name then
+			chosenObject = obj
+			
+			break
+		end
+	end
+	if not chosenObject then return end
 	
-	obj.setName(rewardData[typ].name)
-	obj.setScale(rewardData[typ].scale)
-	obj.setColorTint(rewardData[typ].color)
+	objectsCache[name] = chosenObject
+	
+	return chosenObject
+end
+
+local function giveReward(typ, pos, col)
+	local data = rewardData[typ]
+	if not data then return end
+	
+	local obj = getObjectByName(data.name)
+	local newObj
+	
+	if obj and obj.tag~="Card" then
+		if obj.tag=="Infinite" then
+			newObj = obj.takeObject({position = pos, smooth = false})
+		else
+			newObj = obj.clone({position = pos, smooth = false})
+		end
+	else 
+		newObj = spawnObject({type = "Custom_Model"})
+		newObj.setCustomObject(data.mesh)
+		
+		newObj.setScale(data.scale or {1,1,1})
+		newObj.setColorTint(data.color or {1,1,1})
+	end
+	
+	newObj.setPosition(pos)
+	newObj.setRotation({0,0,0})
+	newObj.setLock(false)
+	
+	local protection = col and Player[col].seated and ("%s - %s\n\n"):format(Player[col].steam_id, Player[col].steam_name) or ""
+	
+	newObj.setName(data.name)
+	newObj.setDescription( protection .. (data.desc or "") )
+	
+	if data.script then
+		newObj.setLuaScript( data.script )
+	end
 end
 function endGame()
 	local objectSets = Global.getTable("objectSets")
@@ -214,20 +341,24 @@ function endGame()
 			elseif result.mult>0 then
 				
 				local pos = set.zone.getPosition()
+				for i=1,(result.specialPowerup * result.mult) do
+					giveReward("Special", pos, set.color)
+					pos.y = pos.y + 0.25
+				end
 				for i=1,(result.power * result.mult) do
-					giveReward("Power", pos)
+					giveReward("Power", pos, set.color)
 					pos.y = pos.y + 0.25
 				end
 				for i=1,(result.reward * result.mult) do
-					giveReward("Reward", pos)
+					giveReward("Reward", pos, set.color)
 					pos.y = pos.y + 0.25
 				end
 				for i=1,(result.royal * result.mult) do
-					giveReward("Royal", pos)
+					giveReward("Royal", pos, set.color)
 					pos.y = pos.y + 0.25
 				end
 				for i=1,(result.rupee * result.mult) do
-					giveReward("Rupee", pos)
+					giveReward("Rupee", pos, set.color)
 					pos.y = pos.y + 0.25
 				end
 				
@@ -300,7 +431,7 @@ function playerHit(handler,col)
 	doCard(set.zone, cardNumber)
 	
 	local lastCard = Global.getVar("lastCard")
-	if cardNumber>=3 or (lastCard and lastCard.getName() == "Cracked Skull") then
+	if cardNumber>=3 or (lastCard and (lastCard.getName() == "Cracked Skull" or lastCard.getName() == "Refresh")) then
 		findNextPlayer()
 	else
 		playerButtons(handler)
@@ -378,9 +509,9 @@ local displayCol = {
 	["Clear"] = {r=1,   g=1,   b=1},
 }
 local cardValue = {
-	["Payout Quadruple"] = {mult=4}, ["Payout Double"] = {mult=2},
+	["Payout Quadruple"] = {mult=4}, ["Payout Double"] = {mult=2}, ["Refresh"] = {mult=0},
 	["Payout Ten"] = {add=10}, ["Payout Five"] = {add=5}, ["Payout One"] = {add=1}, --["Laughing Skull"] = {},
-	["Cracked Skull"] = {bust = true},
+	["Cracked Skull"] = {bust = true}, ["Deck's Blessing"] = {specialPowerup = 1},
 	["Reward token"] = {reward = 1}, ["Powerup"] = {power = 1}, ["Royal token"] = {royal = 1}, ["Rupee"] = {rupee = 1},
 }
 function countCards(set)
@@ -414,7 +545,7 @@ function countCards(set)
 	local results = {
 		add = 0, mult = 1,
 		power = 0, reward = 0, royal = 0, rupee = 0,
-		bust = false
+		specialPowerup = 0, bust = false
 	}
 	for i,card in ipairs(cardNames) do
 		local data = cardValue[card]
@@ -435,7 +566,9 @@ function countCards(set)
 	
 	if results.bust then
 		set.btnHandler.editButton({ index=0, label="\u{2620}", color = displayCol.Bust })
-	elseif results.power>0 or results.reward>0 or results.royal>0 or results.rupee>0 then
+	elseif results.mult==0 then
+		set.btnHandler.editButton({ index=0, label="0", color = displayCol.Clear })
+	elseif results.specialPowerup>0 or results.power>0 or results.reward>0 or results.royal>0 or results.rupee>0 then
 		set.btnHandler.editButton({ index=0, label="\u{2664}", color = displayCol.Win })
 	elseif results.add>0 then
 		set.btnHandler.editButton({ index=0, label=tostring(results.add * results.mult), color = displayCol.Win })

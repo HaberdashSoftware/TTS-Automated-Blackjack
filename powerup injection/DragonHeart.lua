@@ -66,7 +66,7 @@ local effect = {
 				foundCard.setPosition(pos)
 				foundCard.setRotation({0,0,0})
 				
-				Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={foundCard, {targetPos=pos, set=set, isStarter=set, flip=true}}} )
+				Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={foundCard, {targetPos=pos, set=targetSet, isStarter=(n<=2), flip=true}}} )
 				
 				foundCard.setLock(true)
 				foundCard.interactable = false
