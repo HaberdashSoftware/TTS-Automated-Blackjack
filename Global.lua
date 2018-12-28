@@ -3355,8 +3355,11 @@ function payButtonPressed(o, color)
 								bet.interactable = true
 								bet.setLock(false)
 								
-								if set.SplitUser and set.SplitUser.container then
-									set.SplitUser.container.putObject(bet)
+								if set.UserColor then
+									local targetSet = findObjectSetFromColor(set.UserColor) or set.SplitUser
+									if targetSet and targetSet.container then
+										targetSet.container.putObject(bet)
+									end
 								end
 							end
 						end
@@ -3368,9 +3371,12 @@ function payButtonPressed(o, color)
 								if (bet.tag == "Chip" and not powerupEffectTable[bet.getName()]) or (bet.tag == "Bag" and bet.getName():sub(1,11)~="Player save") then
 									bet.interactable = true
 									bet.setLock(false)
-								
-									if set.SplitUser and set.SplitUser.container then
-										set.SplitUser.container.putObject(bet)
+									
+									if set.UserColor then
+										local targetSet = findObjectSetFromColor(set.UserColor) or set.SplitUser
+										if targetSet and targetSet.container then
+											targetSet.container.putObject(bet)
+										end
 									end
 								end
 							end
@@ -3393,13 +3399,15 @@ function payButtonPressed(o, color)
 							bet.interactable = true
 							bet.setLock(false)
 							
-							if zid==1 and set.SplitUser and set.SplitUser.container then -- Only affects bet zone
-								local cont = set.SplitUser.container
-								Wait.frames(function()
-									if bet and cont and not (bet==nil or cont==nil) then
-										set.SplitUser.container.putObject(bet)
-									end
-								end, 0)
+							if zid==1 and set.UserColor then -- Only affects bet zone
+								local cont = (findObjectSetFromColor(set.UserColor) or set.SplitUser or {}).container
+								if cont then
+									Wait.frames(function()
+										if bet and cont and not (bet==nil or cont==nil) then
+											cont.putObject(bet)
+										end
+									end, 1)
+								end
 							end
 						end
 					end
@@ -3566,6 +3574,13 @@ function processPayout(zone, iterations, lockedOnly)
 				else
 					for i=1, iterations do
 						delayedCallback('payBet', {set=set, bet=clone, final=(i==iterations)}, (i/10))
+					end
+					
+					if set.UserColor and bet.tag=="Bag" then
+						local targetSet = findObjectSetFromColor(set.UserColor)
+						if targetSet then
+							targetSet.container.putObject(bet)
+						end
 					end
 				end
 			end
