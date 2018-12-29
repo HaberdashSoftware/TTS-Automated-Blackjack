@@ -1509,34 +1509,51 @@ function addCardValues(hand, cardNames, facedownCount, facedownCard)
 	local dealerBust = 0
 	local stopCount = false
 	for i, card in ipairs(cardNames) do
-		for name, v in pairs(cardNameTable) do
-			if card == name then
-				if v == 0 then aceCount = aceCount + 1
-				elseif v == 7 then sevenCount = sevenCount + 1
-				elseif v == 10 then tenCount = tenCount + 1
-				elseif v == 12 then jokerCount = jokerCount + 1
-				elseif v == -69 then dealerBust = dealerBust + 1 end
-				if hand == 1 then
-					if objectSets[hand].count > 4 or dealerBust > 0 then
-						stopCount = true
-						value = -69
-					end
-				elseif hand ~= 1 then
-					if jokerCount > 0 then
-						if jokerCount == 2 and objectSets[hand].count == 2 then
-							value = 71
-						else
-							value = 68
-						end
-						stopCount = true
-					elseif sevenCount == 3 and objectSets[hand].count == 3 then
-						value = 70
-						stopCount = true
-					end
+		local v = cardNameTable[card]
+		if v then
+			if v == 0 then
+				aceCount = aceCount + 1
+			elseif v == 7 then
+				sevenCount = sevenCount + 1
+			elseif v == 10 then
+				tenCount = tenCount + 1
+			elseif v == 69 then
+				aceCount = aceCount + 1
+				tenCount = tenCount + 1
+				v = 10
+			elseif (v==12 or v==68) then
+				jokerCount = jokerCount + 1
+			elseif (v==71) then
+				jokerCount = jokerCount + 2
+			elseif (v==70) then
+				if objectSets[hand].count==1 then
+					sevenCount = sevenCount + 3
 				end
-				if not stopCount then
-					value = value + v
+				v = 21
+			elseif v == -69 then
+				dealerBust = dealerBust + 1
+			end
+			
+			if hand == 1 then
+				if objectSets[hand].count > 4 or dealerBust > 0 then
+					stopCount = true
+					value = -69
 				end
+			elseif hand ~= 1 then
+				if jokerCount > 0 then
+					if jokerCount == 2 and objectSets[hand].count <= 2 then
+						value = 71
+					else
+						value = 68
+					end
+					stopCount = true
+				elseif sevenCount == 3 and objectSets[hand].count <= 3 then
+					value = 70
+					stopCount = true
+				end
+			end
+			if not stopCount then
+				value = value + v
 			end
 		end
 	end
@@ -1545,10 +1562,10 @@ function addCardValues(hand, cardNames, facedownCount, facedownCard)
 	if aceCount > 0 and not stopCount then
 		for i=1, aceCount do
 			if i==aceCount and value <= 10 then
-				if aceCount == 1 and (tenCount == 1 and objectSets[hand].count == 2) then
+				if aceCount == 1 and tenCount==1 and objectSets[hand].count<=2 then
 					value = 69
 					stopCount = true
-				elseif hand == 1 and facedownCount < 1 and GetSetting("Hands.DealerAceIsOne", true) then
+				elseif hand==1 and facedownCount<1 and GetSetting("Hands.DealerAceIsOne", true) then
 					value = value + 1
 				else
 					value = value + 11
