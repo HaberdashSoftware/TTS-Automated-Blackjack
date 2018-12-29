@@ -1147,6 +1147,7 @@ function activatePowerupEffect(effect, setTarget, powerup, setUser)
 	powerup.setColorTint( stringColorToRGB(setUser.color) or {1,1,1} )
 	
 	if roundStateID==3 and roundTimer and roundTimer.getValue()<10 then
+		preventRoundEnd = os.time() + 1
 		roundTimer.setValue( 10 )
 		roundTimer.Clock.paused = false
 	end
@@ -1688,7 +1689,8 @@ function timerStart()
 	end
 	
 	if roundTimer and roundStateID then
-		if roundTimer.getValue() < 1 then
+		if roundTimer.getValue()<=0 and ((not preventRoundEnd) or os.time()>preventRoundEnd) then
+			preventRoundEnd = nil
 			if roundStateID==1 then
 				dealButtonPressed( nil, "Lua" )
 			elseif roundStateID==3 then
