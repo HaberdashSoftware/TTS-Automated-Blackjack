@@ -505,6 +505,8 @@ function createButtons()
         local posUp   = {(i==1 and -0.7 or 0.7), -0.5, 0.27}
         local posDown = {(i==1 and -0.7 or 0.7), -0.5, -0.1}
 		
+		zone.clearButtons()
+		
         zone.createButton({
             click_function='tradeUp', label='\u{2191}', function_owner=self, --scale={2,2,2},
             position=posUp, rotation={0,180,0}, width=130, height=160, font_size=130

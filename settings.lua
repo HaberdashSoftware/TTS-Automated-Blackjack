@@ -154,6 +154,69 @@ Menu = {
 			Type = "int",
 		},
 	},
+	Table = {
+		{
+			Label = "Table Image",
+			Tooltip = "Diffuse/Image for the table board object.",
+			SettingName = "Table.Diffuse",
+			Default = "https://i.imgur.com/v3UWCHA.png",
+			Type = "string",
+			OnSet = function( newVal, oldVal )
+				local board = getObjectFromGUID("ad770c")
+				if not board then return end
+				
+				local custom = board.getCustomObject()
+				if not custom then return end
+				
+				custom.diffuse = newVal
+				board.setCustomObject( custom )
+				board.reload()
+			end,
+		},
+		{
+			Label = "Table Normals",
+			Tooltip = "Normal/Bump for the table board object.",
+			SettingName = "Table.Normal",
+			Default = "https://i.imgur.com/VkxtDkj.jpg",
+			Type = "string",
+			OnSet = function( newVal, oldVal )
+				local board = getObjectFromGUID("ad770c")
+				if not board then return end
+				
+				local custom = board.getCustomObject()
+				if not custom then return end
+				
+				custom.normal = newVal
+				board.setCustomObject( custom )
+				board.reload()
+			end,
+		},
+		{
+			Label = "Reset Table Images",
+			Tooltip = "Reset table board to defaults",
+			SettingName = "Table.Reset",
+			Default = false,
+			Type = "boolean",
+			OnSet = function( newVal )
+				if not newVal then return end -- Toggled off (shouldn't really happen)
+				
+				local board = getObjectFromGUID("ad770c")
+				if not board then return end
+				
+				local custom = board.getCustomObject()
+				if not custom then return end
+				
+				custom.diffuse = "https://i.imgur.com/v3UWCHA.png"
+				custom.normal = "https://i.imgur.com/VkxtDkj.jpg"
+				board.setCustomObject( custom )
+				board.reload()
+				
+				Settings["Table.Diffuse"] = custom.diffuse
+				Settings["Table.Normal"] = custom.normal
+				Settings["Table.Reset"] = false
+			end,
+		},
+	},
 }
 
 Settings = {}
@@ -183,8 +246,13 @@ function onLoad(saveData)
 	if saveData then
 		local decoded = JSON.decode( saveData )
 		
+		-- Apply settings if they exist
 		if decoded then
-			Settings = decoded
+			for k,v in pairs(decoded) do
+				if Settings[k]~=nil then
+					Settings[k] = v
+				end
+			end
 		end
 	end
 	
@@ -282,7 +350,7 @@ function doMenu(page)
 					position={0, 0.1, zpos}, rotation={0,0,0}, width=2800, height=250, font_size=120,
 					color = col, tooltip = refData.Tooltip,
 				})
-			elseif settingType=="int" then -- Integer entry
+			elseif settingType=="int" or settingType=="float" then -- Number entry
 				-- Label
 				self.createButton({
 					label= ("%s:"):format(tostring(refData.Label or refData.SettingName)), click_function="doNull", function_owner=self, scale = {0.5,0.5,0.5},
@@ -294,7 +362,7 @@ function doMenu(page)
 				self.createInput({
 					label=tostring(refData.Label or refData.SettingName), input_function="doInput"..i, function_owner=self, scale = {0.5,0.5,0.5},
 					position={0.5, 0.1, zpos}, rotation={0,0,0}, width=750, height=200, font_size=120,
-					validation = 2, alignment = 3, value = tostring(Settings[refData.SettingName]),
+					validation = settingType=="float" and 3 or 2, alignment = 3, value = tostring(Settings[refData.SettingName]), -- Validation depends on type
 					color = col, tooltip = refData.Tooltip,
 				})
 				
@@ -309,18 +377,19 @@ function doMenu(page)
 					position={0.95, 0.1, zpos+0.06}, rotation={0,180,0}, width=100, height=90, font_size=80,
 					color = col, tooltip = refData.Tooltip,
 				})
-			elseif settingType=="float" then
-				-- TODO: Input (float)
-				self.createButton({
-					label= ("%s: [b]%s[b]"):format( tostring(refData.Label or refData.SettingName), tostring(Settings[refData.SettingName]==true) ), click_function="doAction"..i, function_owner=self, scale = {0.5,0.5,0.5},
-					position={0, 0.1, zpos}, rotation={0,0,0}, width=2800, height=250, font_size=120,
-					color = col, tooltip = refData.Tooltip,
-				})
 			elseif settingType=="string" then
-				-- TODO: Input (string)
+				-- Label
 				self.createButton({
-					label= ("%s: [b]%s[b]"):format( tostring(refData.Label or refData.SettingName), tostring(Settings[refData.SettingName]==true) ), click_function="doAction"..i, function_owner=self, scale = {0.5,0.5,0.5},
-					position={0, 0.1, zpos}, rotation={0,0,0}, width=2800, height=250, font_size=120,
+					label= ("%s:"):format(tostring(refData.Label or refData.SettingName)), click_function="doNull", function_owner=self, scale = {0.5,0.5,0.5},
+					position={-1, 0.1, zpos}, rotation={0,0,0}, width=0, height=0, font_size=80,
+					font_color = col, tooltip = refData.Tooltip,
+				})
+				
+				-- Input
+				self.createInput({
+					label=tostring(refData.Label or refData.SettingName), input_function="doInput"..i, function_owner=self, scale = {0.5,0.5,0.5},
+					position={0.35, 0.1, zpos}, rotation={0,0,0}, width=1900, height=200, font_size=100,
+					validation = 1, alignment = 3, value = tostring(Settings[refData.SettingName]),
 					color = col, tooltip = refData.Tooltip,
 				})
 			end
@@ -454,10 +523,13 @@ function doAction( index, c )
 	
 	if ref.SettingName then
 		local settingType = getSettingType( ref )
-		
 		if (not settingType) or settingType=="boolean" then
-			Settings[ref.SettingName] = not Settings[ref.SettingName] 
-		-- else
+			local old = Settings[ref.SettingName]
+			Settings[ref.SettingName] = not old
+			
+			if ref.OnSet then
+				ref.OnSet( Settings[ref.SettingName], old )
+			end
 		end
 		
 		doMenu( ListPage )
@@ -500,11 +572,16 @@ function doInput( index, c, value, isSelected )
 		return
 	end
 	
+	local old = Settings[ref.SettingName]
 	local settingType = getSettingType( ref )
 	if settingType=="int" or settingType=="float" then
 		Settings[ref.SettingName] = tonumber(value) or 0
 	elseif settingType=="string" then
 		Settings[ref.SettingName] = tostring(value)
+	end
+	
+	if ref.OnSet then
+		ref.OnSet( Settings[ref.SettingName], old )
 	end
 	
 	return
@@ -529,7 +606,12 @@ function doInputUp( index, c, addValue )
 		return
 	end
 	
-	Settings[ref.SettingName] = (tonumber(Settings[ref.SettingName]) or 0) + (addValue or  1)
+	local old = Settings[ref.SettingName]
+	Settings[ref.SettingName] = (tonumber(old) or 0) + (addValue or  1)
+	
+	if ref.OnSet then
+		ref.OnSet( Settings[ref.SettingName], old )
+	end
 	
 	doMenu( ListPage )
 end
