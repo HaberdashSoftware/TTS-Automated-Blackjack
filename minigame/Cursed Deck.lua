@@ -276,7 +276,7 @@ end
 local objectsCache = {}
 function getObjectByName( name )
 	if objectsCache[name] and not (objectsCache[name]==nil) then
-		return storedPowerupObjects[name]
+		return objectsCache[name]
 	end
 	
 	local chosenObject
@@ -298,6 +298,7 @@ local function giveReward(typ, pos, col)
 	local data = rewardData[typ]
 	if not data then return end
 	
+	
 	local obj = getObjectByName(data.name)
 	local newObj
 	
@@ -314,6 +315,7 @@ local function giveReward(typ, pos, col)
 		newObj.setScale(data.scale or {1,1,1})
 		newObj.setColorTint(data.color or {1,1,1})
 	end
+	if (not newObj) or (newObj==nil) then return end
 	
 	newObj.setPosition(pos)
 	newObj.setRotation({0,0,0})
@@ -339,7 +341,6 @@ function endGame()
 			if result.bust then
 				Global.call( "forwardFunction", {function_name="clearBets", data={set.zone, true}} )
 			elseif result.mult>0 then
-				
 				local pos = set.zone.getPosition()
 				for i=1,(result.specialPowerup * result.mult) do
 					giveReward("Special", pos, set.color)
