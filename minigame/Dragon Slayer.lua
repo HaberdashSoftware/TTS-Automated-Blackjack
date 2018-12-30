@@ -108,7 +108,6 @@ table.sort(sortedClasses)
 local DragonHeartPowerup = [[-- Unique powerup from Dragon's Lair
 local objData = {
 	scale = {0.72,0.72,0.72},
-	color = {r=1,g=1,b=1},
 	mesh = {mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/o9e0zob.png", material=1, specular_intensity=0.05, specular_sharpness=3, type=1},
 }
 local function doAddCard(user, target, powerup, name, desc, image)
@@ -132,10 +131,17 @@ local function doAddCard(user, target, powerup, name, desc, image)
 	newObj.setColorTint( stringColorToRGB(user.color) or {1,1,1} )
 end
 local effect = {
-	function(userSet, targetSet, pwup) -- Dragon's Luck (Seven)
+	function(userSet, targetSet, pwup) -- Dragon's Luck (Add what you need)
 		printToAll("Powerup event: " ..userSet.color.. " has consumed a Dragon Heart and received Dragon's Luck!", {0.5,0.5,1})
 		
-		doAddCard(userSet, targetSet, pwup, "Dragon's Lucky Number", "You feel the dragon's luck wash over you.\n\n+7 to your hand.", "https://i.imgur.com/U99uqPB.png")
+		local reqNum = 21 - (targetSet.value or 21)
+		local pwupName = ("Dragon's Luck (%+i)"):format(reqNum)
+		
+		local tbl = Global.getTable("cardNameTable")
+		tbl[pwupName] = reqNum
+		Global.setTable("cardNameTable", tbl)
+		
+		doAddCard(userSet, targetSet, pwup, pwupName, "You feel the dragon's luck wash over you.\n\nGives you what you need.", "https://i.imgur.com/U99uqPB.png")
 	end,
 	function(userSet, targetSet, pwup) -- Dragon's Blood (Joker)
 		printToAll("Powerup event: " ..userSet.color.. " has consumed a Dragon Heart and received Dragon's Blood!", {0.5,0.5,1})
@@ -173,7 +179,7 @@ local effect = {
 				foundCard.setPosition(pos)
 				foundCard.setRotation({0,0,0})
 				
-				Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={foundCard, {targetPos=pos, set=set, isStarter=set, flip=true}}} )
+				Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={foundCard, {targetPos=pos, set=targetSet, isStarter=(n<=2), flip=true}}} )
 				
 				foundCard.setLock(true)
 				foundCard.interactable = false
@@ -234,7 +240,7 @@ local rewardData = {
 	},
 	["Dragon's Heart"] = {
 		icon = "https://i.imgur.com/o9e0zob.png",
-		spawnObject = {name="Dragon's Heart", desc="[b]Unique Powerup[/b]\nLooted from Dragon's Lair\n\nUse on your own hand to consume the heart and receive a random effect.", scale={0.72,0.72,0.72}, color={r=1,g=1,b=1}, mesh={mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/o9e0zob.png", material=1, specular_intensity=0.05, specular_sharpness=3, type=1}},
+		spawnObject = {name="Dragon's Heart", desc="[b]Unique Powerup[/b]\nLooted from Dragon's Lair\n\nUse on your own hand to consume the heart and receive a random boon.", scale={0.72,0.72,0.72}, color={r=1,g=1,b=1}, mesh={mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/o9e0zob.png", material=1, specular_intensity=0.05, specular_sharpness=3, type=1}},
 		spawnScript = DragonHeartPowerup,
 		chance = 2,
 	},
@@ -1572,7 +1578,7 @@ function doPayout()
 						newObj.setLock(false)
 						
 						newObj.setName(data.spawnObject.name or "<N/A>")
-						newObj.setDescription( protection .. (data.desc or "") )
+						newObj.setDescription( protection .. (data.spawnObject.desc or "") )
 						newObj.setScale( data.spawnObject.scale or {1,1,1} )
 						newObj.setColorTint(data.spawnObject.color or {r=1,g=1,b=1})
 						

@@ -1,5 +1,4 @@
 -- Unique powerup from Dragon's Lair
-
 local objData = {
 	scale = {0.72,0.72,0.72},
 	mesh = {mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/o9e0zob.png", material=1, specular_intensity=0.05, specular_sharpness=3, type=1},
@@ -25,10 +24,17 @@ local function doAddCard(user, target, powerup, name, desc, image)
 	newObj.setColorTint( stringColorToRGB(user.color) or {1,1,1} )
 end
 local effect = {
-	function(userSet, targetSet, pwup) -- Dragon's Luck (Seven)
+	function(userSet, targetSet, pwup) -- Dragon's Luck (Add what you need)
 		printToAll("Powerup event: " ..userSet.color.. " has consumed a Dragon Heart and received Dragon's Luck!", {0.5,0.5,1})
 		
-		doAddCard(userSet, targetSet, pwup, "Dragon's Lucky Number", "You feel the dragon's luck wash over you.\n\n+7 to your hand.", "https://i.imgur.com/U99uqPB.png")
+		local reqNum = 21 - (targetSet.value or 21)
+		local pwupName = ("Dragon's Luck (%+i)"):format(reqNum)
+		
+		local tbl = Global.getTable("cardNameTable")
+		tbl[pwupName] = reqNum
+		Global.setTable("cardNameTable", tbl)
+		
+		doAddCard(userSet, targetSet, pwup, pwupName, "You feel the dragon's luck wash over you.\n\nGives you what you need.", "https://i.imgur.com/U99uqPB.png")
 	end,
 	function(userSet, targetSet, pwup) -- Dragon's Blood (Joker)
 		printToAll("Powerup event: " ..userSet.color.. " has consumed a Dragon Heart and received Dragon's Blood!", {0.5,0.5,1})
