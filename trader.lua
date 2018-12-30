@@ -110,10 +110,11 @@ function spawnObject( item, c, spawnAs )
 	clone.setPosition(params.position)
 	clone.setDescription( ourColor and ("%s - %s"):format( Player[c].steam_id, Player[c].steam_name) or "" )
 	
+	local shouldReset = (clone.tag=="Bag" and item.tag~="Infinite")
 	Wait.frames(function()
 		if (not clone) or clone==nil then return end
 		
-		if clone.tag=="Bag" then
+		if shouldReset then
 			clone.reset()
 		end
 		
