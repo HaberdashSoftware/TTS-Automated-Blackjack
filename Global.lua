@@ -421,6 +421,8 @@ function onObjectDropped(colorOfDropper, droppedObject)
 		end
 	end
 end
+
+local preventEnterContainer = {}
 function onObjectPickUp(col, obj)
 	if col~="Black" and obj.getPosition()[3] >= -16 then
 		local desc = obj.getDescription()
@@ -434,7 +436,11 @@ function onObjectPickUp(col, obj)
 				obj.setDescription( ("%s - %s"):format(Player[col].steam_id, Player[col].steam_name) )
 			end
 		elseif (not Player[col].admin) and desc:find("^(%d+) %- .*") then
-			obj.reload()
+			local guid = obj.getGUID()
+			preventEnterContainer[obj.getGUID()] = obj.reload()
+			Wait.frames(function()
+				preventEnterContainer[obj.getGUID()] = nil
+			end, 1)
 			
 			for k,adminCol in pairs(getSeatedPlayers()) do
 				if Player[adminCol].admin then
@@ -442,6 +448,11 @@ function onObjectPickUp(col, obj)
 				end
 			end
 		end
+	end
+end
+function onObjectEnterContainer(bag, obj)
+	if preventEnterContainer[obj.getGUID()] and preventEnterContainer[obj.getGUID()]==obj then
+		destroyObject(obj)
 	end
 end
 
