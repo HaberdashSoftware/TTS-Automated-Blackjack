@@ -46,10 +46,14 @@ local saveQueue = {}
 function DoSaveQueue()
 	if #saveQueue==0 then Timer.destroy("DoSaveQueue") return end
 	
-	local box,col = saveQueue[1][1],saveQueue[1][2]
-	table.remove(saveQueue, 1)
+	local box,col,force = saveQueue[1][1],saveQueue[1][2],saveQueue[1][3]
 	
-	if (not box) or box==nil then return end
+	while saveQueue[1] and saveQueue[1][1]==box do
+		force = force or saveQueue[1][3]
+		table.remove(saveQueue, 1)
+	end
+	
+	if (not box) or (box==nil) then return end
 	
 	box.unlock()
 	
@@ -66,58 +70,74 @@ function DoSaveQueue()
 		end
 		return
 	end
-	for j, found in ipairs(saveObjects) do
-		if found.name:find(id) then
-			if col then
-				broadcastToColor("Error: Duplicate save found.\nRetrieve your save before trying again.", col or "Black", {1,0.25,0.25})
-			else
-				print( "Duplicate save found. Autosave failed.")
+	
+	if not force then
+		local foundCol
+		for _,col in pairs(getSeatedPlayers()) do
+			if Player[col].seated and Player[col].steam_id==id then
+				foundCol = col
+				break
 			end
-			return
+		end
+		if foundCol then
+			local set = Global.call( "forwardFunction", {function_name="findObjectSetFromColor", data={foundCol}} )
+			if set and set.zone then
+				box.setPosition( set.zone.getPosition() )
+				box.setRotation( {0,0,0} )
+				
+				return
+			end
 		end
 	end
 	
-	local clonedObject = box.clone(params)
-	box.destruct()
-	clonedObject.setName( ("%s | %i | %s"):format(box.getName(), os.time(), id) )
-	clonedObject.setDescription('')
-	
-	self.putObject(clonedObject)
+	self.putObject(box)
 end
 
 local autoSaveData = {}
 function DoAutoSave(data, ...)
-	local obj = autoSaveData[data.color][1]
+	local itemData = autoSaveData[data.color] or {}
 	
-	if obj then
-		if not (obj==nil) then -- DO NOT remove the brackets here. (obj==nil) == (not obj==nil), (obj==nil) != (not (obj==nil))
-			obj.unlock()
-			data.save.putObject( obj )
-		end
+	for i=1,math.min(10,#itemData) do
+		local obj = itemData[1]
 		
-		table.remove( autoSaveData[data.color], 1 )
-	elseif #autoSaveData>1 then
-		table.remove( autoSaveData[data.color], 1 )
-	else
+		if obj then
+			if not (obj==nil) then -- Do not remove the brackets here. `(not obj==nil)` is not the same as `not (obj==nil)`
+				obj.unlock()
+				data.save.putObject( obj )
+			end
+			
+			table.remove( itemData, 1 )
+		elseif #itemData>1 then
+			table.remove( itemData, 1 )
+		else
+			break
+		end
+	end
+	
+	if #itemData<=0 then
 		local set = Global.call( "forwardFunction", {function_name="findObjectSetFromColor", data={data.color}} )
 		
 		if set and set.container.getQuantity()>0 then
 			local params = {}
 			params.position = set.container.getPosition()
-			params.position.y = params.position.y + 0.25
-			
-			local taken = set.container.takeObject(params)
-			taken.lock()
-			
-			table.insert( autoSaveData[data.color], taken )
+			for i=1,math.min(set.container.getQuantity(), 20) do
+				params.position.y = params.position.y + 0.25
+				
+				local taken = set.container.takeObject(params)
+				taken.unlock()
+				
+				-- table.insert( autoSaveData[data.color], taken )
+				data.save.putObject( taken )
+			end
 			
 			Timer.destroy("Autosave"..data.color)
-			Timer.create({identifier="Autosave"..data.color, function_name="DoAutoSave", parameters={save=data.save, color=data.color}, delay=0.2, repetitions=2})
+			Timer.create({identifier="Autosave"..data.color, function_name="DoAutoSave", parameters={save=data.save, color=data.color}, delay=0.5, repetitions=2})
 		else
 			autoSaveData[data.color] = nil
 			
 			table.insert(saveQueue, {data.save})
 			
+			Timer.destroy("Autosave"..data.color)
 			Timer.destroy("DoSaveQueue")
 			Timer.create({identifier="DoSaveQueue", function_name="DoSaveQueue", delay=0.25, repetitions=0})
 		end
@@ -178,28 +198,31 @@ function onObjectEnterContainer(bag,o)
 	end
 	
 	if matchingSave then
-		-- Place object into found save box
 		params.index = matchingSave.index
 		local deployedBox = self.takeObject(params)
 		if deployedBox then
-			deployedBox.putObject(o)
-			
-			-- Replace save box
-			self.putObject(deployedBox)
-		end
-		
-		-- Destroy object in bag
-		local lastFoundObj
-		for _,obj in ipairs(self.getObjects()) do -- params.guid always starts from the bottom regardless of params.top
-			if obj.guid==o.getGUID() then
-				lastFoundObj = obj
+			local lastFoundObj
+			for _,obj in ipairs(self.getObjects()) do -- params.guid always starts from the bottom regardless of params.top
+				if obj.guid==o.getGUID() then
+					lastFoundObj = obj
+				end
 			end
-		end
-		if lastFoundObj then
-			params.index = lastFoundObj.index
-			local deployedObject = self.takeObject(params)
-			if deployedObject then
-				destroyObject(deployedObject)
+			
+			if lastFoundObj then
+				-- Place object into found save box
+				params.index = lastFoundObj.index
+				local deployedInserted = self.takeObject(params)
+				if deployedInserted then
+					deployedBox.putObject(deployedInserted)
+					
+					-- Wait.frames(function() -- Replace save box
+						self.putObject(deployedBox)
+					-- end, 1)
+					
+					destroyObject(deployedInserted) -- This is necessary to stop duplicated. Not entirely sure why.
+				end
+			else
+				self.putObject(deployedBox)
 			end
 		end
 		
@@ -328,9 +351,9 @@ end
 -----------------------
 function onPlayerChangeColor(color)
 	-- Auto Save --
-	for _,oldCol in pairs({"Pink","Purple","Blue","Teal","Green","Yellow","Orange","Red","Brown","White"}) do -- Wouldn't it be nice if this function incldued the previous colour?
+	for _,oldCol in pairs(Player.getAvailableColors()) do
 		local zone = playerZone[oldCol]
-		if zone.wasSeated and not (Player[oldCol].seated or autoSaveData[oldCol]) then -- Player currently seated or currently saving this table
+		if oldCol~="Black" and zone.wasSeated and not (Player[oldCol].seated or autoSaveData[oldCol]) then -- Player currently seated or currently saving this table
 			local tblObjects = zone.tbl.getObjects()
 			local prestigeObjects = zone.prestige.getObjects()
 			local zoneObjects = zone.zone.getObjects()
@@ -359,7 +382,7 @@ function onPlayerChangeColor(color)
 				-- Table stuff
 				for _,objList in pairs({tblObjects,zoneObjects,prestigeObjects}) do
 					for _,v in pairs(objList) do
-						if v~=foundSave and v.interactable and not v.getLock() then
+						if v~=foundSave and v.interactable and v.held_by_color~=oldCol and not v.getLock() then
 							local id = v.getDescription():match("^(%d+) %- .*")
 							if (not id) or (id==plyID) then
 								table.insert(objectsTbl, v)
@@ -372,7 +395,7 @@ function onPlayerChangeColor(color)
 				-- Delayed unfreeze and save
 				print( tostring(oldCol)..": Auto saving" )
 				autoSaveData[oldCol] = objectsTbl
-				Timer.create({identifier="Autosave"..oldCol, function_name="DoAutoSave", parameters={save=foundSave, color=oldCol}, delay=0.2, repetitions=#objectsTbl+1})
+				Timer.create({identifier="Autosave"..oldCol, function_name="DoAutoSave", parameters={save=foundSave, color=oldCol}, delay=0.5, repetitions=#objectsTbl+1})
 			end
 		end
 		
@@ -482,6 +505,8 @@ function purgeMonth(_, col) return purge(2592000, col) end -- 2 592 000 seconds 
 function purgeYear(_, col) return purge(31536000, col) end -- 31 536 000 seconds per year
 
 function createButtons()
+	buttonHandler.clearButtons()
+	
     buttonHandler.createButton({
         click_function='save', label='Save', function_owner=self,
         position={-0.92,0.19,-0.19}, rotation={0,0,0}, width=450, height=300, font_size=150
