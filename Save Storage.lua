@@ -4,6 +4,13 @@
 -- Setup --
 -----------
 function onload()
+	if findSaveStorage() then
+		printToAll("Failed to deploy Save Storage: Bag already exists.", {1,0.75,0.75})
+		ForceDestruct = true
+		destroyObject(self)
+		return
+	end
+	
     playerZone = {
         ["Black"] = {zone=getObjectFromGUID("275a5d")},
         ["Pink"] = {zone=getObjectFromGUID("44f05e"), prestige=getObjectFromGUID("0b4a58"), tbl=getObjectFromGUID("bb54b1")},
@@ -25,12 +32,22 @@ function onload()
     lockout = false
     populateTable()
     createButtons()
+	
+	ThisScript = self.getLuaScript()
 end
 function populateTable()
     local saveObjects = self.getObjects()
     for i, object in ipairs(saveObjects) do
 		hadStarter[object.name or ""] = true
     end
+end
+
+function findSaveStorage()
+	for _,obj in pairs(getAllObjects()) do
+		if obj.getName()==self.getName() and obj.getTable("hadStarter") and not (obj==nil) then -- Exists, matches, and initialised
+			return obj -- Return it
+		end
+	end
 end
 
 
@@ -154,7 +171,7 @@ function save(o, color)
         params.position = self.getPosition()
         for i, object in ipairs(foundObjects) do
             if string.find(object.getName(), 'Player save:') then
-				table.insert(saveQueue, {object, color})
+				table.insert(saveQueue, {object, color, true})
 				saveFound = true
             end
         end
@@ -174,6 +191,10 @@ end
 ----------------------------
 
 function onObjectEnterContainer(bag,o)
+	if o==self then
+		doPlacedInBag(bag)
+		return
+	end
 	if bag~=self then return end
 	
 	local isSaveFormat = o.getName():match("| %d+ | %d+$")
@@ -181,11 +202,11 @@ function onObjectEnterContainer(bag,o)
 	
 	local saveBox = o.getName():find("Player save:")
 	local foundID = o.getDescription():match("^(%d+) %- .*")
-	if not foundID then return EjectGrabbedObject(o) end -- Not a saveable object (no id) -- TODO: Eject
+	if not foundID then return EjectGrabbedObject(o) end -- Not a saveable object (no id)
 	
 	local targetPos = self.getPosition()
-	targetPos.y = targetPos.y + 5
-	targetPos.z = targetPos.z + 5
+	targetPos.y = targetPos.y - 10
+	targetPos.z = targetPos.z - 5
 	
 	local params = {position = targetPos, smooth = false}
 	
@@ -277,6 +298,45 @@ function EjectGrabbedObject(o)
 			end
 		end
 	end
+end
+
+function doPlacedInBag( bag )
+	local lastFoundObj
+	for _,obj in ipairs(bag.getObjects()) do -- params.guid always starts from the bottom regardless of params.top
+		if obj.guid==self.getGUID() then
+			lastFoundObj = obj
+		end
+	end
+	
+	local params = {position = {0,10,0}, smooth = false}
+	if lastFoundObj then
+		params.index = lastFoundObj.index
+		local deployedObject = bag.takeObject(params)
+		destroyObject(deployedObject)
+	end
+end
+
+local RespawnPos = {-2.00,1.46,-20.50}
+local RespawnRot = {0,0,0}
+local RespawnScale = {0.68,0.68,0.68}
+function onDestroy()
+	if ForceDestruct then return end -- We're destroying ourself
+	if self.held_by_color and Player[self.held_by_color].admin then return end -- Held by admin, assume it's legit
+	
+	local json = self.getJSON()
+	
+	local params = {
+		json = json,
+		position = RespawnPos,
+		rotation = RespawnRot,
+		scale = RespawnScale,
+	}
+	
+	printToAll("Warning: Save Storage has gone missing! Attempting restore...", {1,0,0})
+	
+	local newObj = spawnObjectJSON(params)
+	newObj.setLuaScript( ThisScript )
+	newObj.setLock(true)
 end
 
 -- Process Load --
