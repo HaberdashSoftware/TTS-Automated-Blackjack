@@ -4,12 +4,14 @@
 -- Setup --
 -----------
 function onload()
-	if findSaveStorage() then
+	local oldStorage = findSaveStorage()
+	if oldStorage and not (oldStorage==nil) and not (oldStorage.getVar("ForceDestruct")) then
 		printToAll("Failed to deploy Save Storage: Bag already exists.", {1,0.75,0.75})
 		ForceDestruct = true
 		destroyObject(self)
 		return
 	end
+	ForceDestruct = nil
 	
     playerZone = {
         ["Black"] = {zone=getObjectFromGUID("275a5d")},
