@@ -156,10 +156,28 @@ Menu = {
 	},
 	Table = {
 		{
+			Label = "Table Model",
+			Tooltip = "Model/Mesh for the table board object.",
+			SettingName = "Table.Model",
+			Default = "https://pastebin.com/MFqUm1QA",
+			Type = "string",
+			OnSet = function( newVal, oldVal )
+				local board = getObjectFromGUID("ad770c")
+				if not board then return end
+				
+				local custom = board.getCustomObject()
+				if not custom then return end
+				
+				custom.mesh = newVal
+				board.setCustomObject( custom )
+				board.reload()
+			end,
+		},
+		{
 			Label = "Table Image",
 			Tooltip = "Diffuse/Image for the table board object.",
 			SettingName = "Table.Diffuse",
-			Default = "https://i.imgur.com/v3UWCHA.png",
+			Default = "https://i.imgur.com/Fil06bD.jpg",
 			Type = "string",
 			OnSet = function( newVal, oldVal )
 				local board = getObjectFromGUID("ad770c")
@@ -177,7 +195,7 @@ Menu = {
 			Label = "Table Normals",
 			Tooltip = "Normal/Bump for the table board object.",
 			SettingName = "Table.Normal",
-			Default = "https://i.imgur.com/VkxtDkj.jpg",
+			Default = "https://i.imgur.com/2LtkN4S.jpg",
 			Type = "string",
 			OnSet = function( newVal, oldVal )
 				local board = getObjectFromGUID("ad770c")
@@ -192,27 +210,47 @@ Menu = {
 			end,
 		},
 		{
-			Label = "Reset Table Images",
-			Tooltip = "Reset table board to defaults",
-			SettingName = "Table.Reset",
-			Default = false,
-			Type = "boolean",
-			OnSet = function( newVal )
-				if not newVal then return end -- Toggled off (shouldn't really happen)
-				
+			Label = "Table Collider",
+			Tooltip = "Collider for the table board object.",
+			SettingName = "Table.Collider",
+			Default = "https://pastebin.com/UTx70Jff",
+			Type = "string",
+			OnSet = function( newVal, oldVal )
 				local board = getObjectFromGUID("ad770c")
 				if not board then return end
 				
 				local custom = board.getCustomObject()
 				if not custom then return end
 				
-				custom.diffuse = "https://i.imgur.com/v3UWCHA.png"
-				custom.normal = "https://i.imgur.com/VkxtDkj.jpg"
+				custom.collider = newVal
+				board.setCustomObject( custom )
+				board.reload()
+			end,
+		},
+		{
+			Label = "Reset Table Board",
+			Tooltip = "Reset table board to defaults",
+			SettingName = "Table.Reset",
+			-- Default = false,
+			Type = "Action",
+			OnSet = function()
+				local board = getObjectFromGUID("ad770c")
+				if not board then return end
+				
+				local custom = board.getCustomObject()
+				if not custom then return end
+				
+				custom.mesh = "https://pastebin.com/MFqUm1QA"
+				custom.diffuse = "https://i.imgur.com/Fil06bD.jpg"
+				custom.normal = "https://i.imgur.com/2LtkN4S.jpg"
+				custom.collider = "https://pastebin.com/UTx70Jff"
 				board.setCustomObject( custom )
 				board.reload()
 				
+				Settings["Table.Model"] = custom.mesh
 				Settings["Table.Diffuse"] = custom.diffuse
 				Settings["Table.Normal"] = custom.normal
+				Settings["Table.Collider"] = custom.collider
 				Settings["Table.Reset"] = false
 			end,
 		},
@@ -392,6 +430,12 @@ function doMenu(page)
 					validation = 1, alignment = 3, value = tostring(Settings[refData.SettingName]),
 					color = col, tooltip = refData.Tooltip,
 				})
+			else -- Unrecognised type, probably an action button
+				self.createButton({
+					label= ("%s"):format( tostring(refData.Label or refData.SettingName) ), click_function="doAction"..i, function_owner=self, scale = {0.5,0.5,0.5},
+					position={0, 0.1, zpos}, rotation={0,0,0}, width=2800, height=250, font_size=120,
+					color = col, tooltip = refData.Tooltip,
+				})
 			end
 		else
 			self.createButton({
@@ -526,10 +570,9 @@ function doAction( index, c )
 		if (not settingType) or settingType=="boolean" then
 			local old = Settings[ref.SettingName]
 			Settings[ref.SettingName] = not old
-			
-			if ref.OnSet then
-				ref.OnSet( Settings[ref.SettingName], old )
-			end
+		end
+		if ref.OnSet then
+			ref.OnSet( Settings[ref.SettingName], old )
 		end
 		
 		doMenu( ListPage )
