@@ -213,7 +213,7 @@ Menu = {
 			Label = "Table Collider",
 			Tooltip = "Collider for the table board object.",
 			SettingName = "Table.Collider",
-			Default = "https://pastebin.com/UTx70Jff",
+			Default = "https://pastebin.com/MFqUm1QA",
 			Type = "string",
 			OnSet = function( newVal, oldVal )
 				local board = getObjectFromGUID("ad770c")
@@ -243,7 +243,7 @@ Menu = {
 				custom.mesh = "https://pastebin.com/MFqUm1QA"
 				custom.diffuse = "https://i.imgur.com/Fil06bD.jpg"
 				custom.normal = "https://i.imgur.com/2LtkN4S.jpg"
-				custom.collider = "https://pastebin.com/UTx70Jff"
+				custom.collider = "https://pastebin.com/MFqUm1QA"
 				board.setCustomObject( custom )
 				board.reload()
 				
