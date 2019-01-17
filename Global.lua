@@ -2183,6 +2183,46 @@ function dealPlayer(color, whichCard)
 	end
 end
 
+
+function updateCardPositions( set )
+	local zone = set.zone
+	local cards = findCardsInZone(zone)
+	
+	table.sort( cards, function(a,b)
+		local aStarter = a.getTable("blackjack_playerSet")
+		local bStarter = b.getTable("blackjack_playerSet")
+		
+		if aStarter and not bStarter then
+			return true
+		elseif bStarter and not aStarter then
+			return false
+		end
+		
+		local aPos = a.getPosition()
+		local bPos = b.getPosition()
+		
+		if math.abs(aPos.z-bPos.z)<0.25 then -- Allow for a small variance in position, if we're too strict cards might re-order
+			if math.abs(aPos.x-bPos.x)<0.25 then
+				return aPos.y<bPos.y
+			end
+			return aPos.x>bPos.x
+		end
+		
+		return aPos.z<bPos.z
+	end)
+	
+	local zoneRot = zone.getRotation()
+	for i=1,#cards do
+		cards[i].setPosition( findCardPlacement(zone, i) )
+		
+		local rot = cards[i].getRotation()
+		rot.x = zoneRot.x
+		rot.y = zoneRot.y + 180
+		rot.z = (rot.z>15 and rot.z<275) and 180 or 0
+		cards[i].setRotation(rot)
+	end
+end
+
 --Called by other functions to actually take the card needed
 function btnFlipCard(card, col)
 	local canFlip = RunBonusFunc( "onCardFlip", {card=card, col=col} )
@@ -2251,8 +2291,8 @@ function cardPlacedCallback(obj, data)
 		obj.setTable("blackjack_playerSet", nil)
 	end
 	
-	
 	if data.set then
+		updateCardPositions( data.set )
 		updateHandCounter( data.set )
 	else
 		findCardsToCount()
