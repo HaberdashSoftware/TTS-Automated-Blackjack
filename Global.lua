@@ -1309,6 +1309,8 @@ function revealHandZone(targetZone)
 		if targetZone==objectSets[1].zone then -- Dealer
 			startLuaCoroutine( Global, "DoDealersCards" )
 		end
+		
+		updateHandCounter( findObjectSetFromZone(targetZone) )
 	else
 		printToAll("ERROR: No cards to reveal. Powerup devoured anyway.", {1,0.1,0.1})
 	end
