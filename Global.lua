@@ -995,7 +995,8 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 		
 		if (#findCardsInZone(setTarget.zone)>0 or #findDecksInZone(setTarget.zone)>0 or #findFigurinesInZone(setTarget.zone)>1) then
 			local powerupValue = cardNameTable[powerup.getName()] or 0
-			findCardsToCount() -- Recount
+			-- findCardsToCount() -- Recount
+			updateHandCounter( setTarget )
 			
 			if setTarget.color=="Dealer" then
 				if setTarget.count==4 and setTarget.value<=21 and setTarget.value>0 then -- This makes 5 card bust
@@ -1247,7 +1248,8 @@ function DoDealersCards()
 		end
 	end
 	
-	findCardsToCount()
+	-- findCardsToCount()
+	updateHandCounter( set[1] )
 	waitTime(0.05)
 	
 	local standValue = GetSetting("Hands.DealerStandValue", 17)
@@ -1266,7 +1268,8 @@ function DoDealersCards()
 		end
 		
 		waitTime(0.5)
-		findCardsToCount()
+		-- findCardsToCount()
+		updateHandCounter( set[1] )
 		waitTime(0.05)
 	end
 	if not dealingDealersCards then return end
@@ -1444,54 +1447,64 @@ local displayCol = {
 --Looks for any cards in the scripting zones and sends them on to obtainCardValue
 --Looks for any decks in the scripting zones and sends them on to obtainDeckValue
 --Triggers next step, addValues(), after that
+local nextAutoCardCount = 0
 function findCardsToCount()
-	if minigame and not (minigame==nil) and minigame.getVar("blackjackCountCards") and minigame.Call("blackjackCountCards") then -- Override
+	nextAutoCardCount = os.time() + 5 -- Push back auto count
+	
+	if minigame and not (minigame==nil) and minigame.getVar("blackjackCountCards") and minigame.Call("blackjackCountCards") then -- Minigame override
 		-- Should something happen here?
 	else
 		for hand, set in ipairs(objectSets) do
-			local cardList = findCardsInZone(set.zone)
-			local deckList = findDecksInZone(set.zone)
-			local figurineList = findFigurinesInZone(set.zone)
-			if #cardList ~= 0 or #deckList ~= 0 or #figurineList ~= 0 then
-				obtainCardNames(hand, cardList, deckList, figurineList)
-			else
-				set.value = 0
-				set.count = 0
-				local override = false
-				if minigame and not (minigame==nil) and minigame.getVar("blackjackDisplayResult") then -- Override
-					local str, col = minigame.Call("blackjackDisplayResult", {set=objectSets[hand], value=value, soft=soft})
-					if str then
-						objectSets[hand].btnHandler.editButton({
-							index=0, label=str, color = (col and {r=col.r,g=col.g,b=col.b} or displayCol.Clear) -- Can't use the colour directly, causes errors
-						})
-						
-						override = true
-					end
-				end
-				
-				if not override then
-					objectSets[hand].btnHandler.editButton({index=0, label="0", color=displayCol.Clear})
-				end
-			end
+			updateHandCounter( set )
 		end
 	end
 	timerStart()
 end
+function updateHandCounter( set )
+	if not set then return end
+	
+	local cardList = findCardsInZone(set.zone)
+	local deckList = findDecksInZone(set.zone)
+	local figurineList = findFigurinesInZone(set.zone)
+	if #cardList ~= 0 or #deckList ~= 0 or #figurineList ~= 0 then
+		obtainCardNames(set, cardList, deckList, figurineList)
+		return
+	end
+	
+	set.value = 0
+	set.count = 0
+	
+	local override = false
+	if minigame and not (minigame==nil) and minigame.getVar("blackjackDisplayResult") then -- Override
+		local str, col = minigame.Call("blackjackDisplayResult", {set=set, value=value, soft=soft})
+		if str then
+			set.btnHandler.editButton({
+				index=0, label=str, color = (col and {r=col.r,g=col.g,b=col.b} or displayCol.Clear) -- Can't use the colour directly, causes errors
+			})
+			
+			override = true
+		end
+	end
+	
+	if not override then
+		set.btnHandler.editButton({index=0, label="0", color=displayCol.Clear})
+	end
+end
 
 --Gets a list of names from the card if they are face up
-function obtainCardNames(hand, cardList, deckList, figurineList)
+function obtainCardNames(set, cardList, deckList, figurineList)
 	local cardNames = {}
 	local facedownCount = 0
 	local facedownCard = nil
 	for i, card in ipairs(cardList) do
 		local z = card.getRotation().z
 		if z > 270 or z < 90 then
-			if hand == 1 and card.getName() == "Joker" then
+			if set.color=="Dealer" and card.getName()=="Joker" then
 				resetTimer(3)
 				card.destruct()
 			end
 			table.insert(cardNames, card.getName())
-		elseif hand == 1 then
+		elseif set.color=="Dealer" then
 			facedownCount = facedownCount + 1
 			facedownCard = card
 		end
@@ -1507,12 +1520,12 @@ function obtainCardNames(hand, cardList, deckList, figurineList)
 	for i, figurine in ipairs(figurineList) do
 		table.insert(cardNames, figurine.getName())
 	end
-	objectSets[hand].count = #cardNames
-	addCardValues(hand, cardNames, facedownCount, facedownCard)
+	set.count = #cardNames
+	addCardValues(set, cardNames, facedownCount, facedownCard)
 end
 
 --Adds card values from their names
-function addCardValues(hand, cardNames, facedownCount, facedownCard)
+function addCardValues(set, cardNames, facedownCount, facedownCard)
 	local value = 0
 	local aceCount = 0
 	local sevenCount = 0
@@ -1538,7 +1551,7 @@ function addCardValues(hand, cardNames, facedownCount, facedownCard)
 			elseif (v==71) then
 				jokerCount = jokerCount + 2
 			elseif (v==70) then
-				if objectSets[hand].count==1 then
+				if set.count==1 then
 					sevenCount = sevenCount + 3
 				end
 				v = 21
@@ -1546,20 +1559,20 @@ function addCardValues(hand, cardNames, facedownCount, facedownCard)
 				dealerBust = dealerBust + 1
 			end
 			
-			if hand == 1 then
-				if objectSets[hand].count > 4 or dealerBust > 0 then
+			if set.color=="Dealer" then
+				if set.count > 4 or dealerBust > 0 then
 					stopCount = true
 					value = -69
 				end
-			elseif hand ~= 1 then
+			else
 				if jokerCount > 0 then
-					if jokerCount == 2 and objectSets[hand].count <= 2 then
+					if jokerCount == 2 and set.count <= 2 then
 						value = 71
 					else
 						value = 68
 					end
 					stopCount = true
-				elseif sevenCount == 3 and objectSets[hand].count <= 3 then
+				elseif sevenCount == 3 and set.count <= 3 then
 					value = 70
 					stopCount = true
 				end
@@ -1574,10 +1587,10 @@ function addCardValues(hand, cardNames, facedownCount, facedownCard)
 	if aceCount > 0 and not stopCount then
 		for i=1, aceCount do
 			if i==aceCount and value <= 10 then
-				if aceCount == 1 and tenCount==1 and objectSets[hand].count<=2 then
+				if aceCount == 1 and tenCount==1 and set.count<=2 then
 					value = 69
 					stopCount = true
-				elseif hand==1 and facedownCount<1 and GetSetting("Hands.DealerAceIsOne", true) then
+				elseif set.color=="Dealer" and facedownCount<1 and GetSetting("Hands.DealerAceIsOne", true) then
 					value = value + 1
 				else
 					value = value + 11
@@ -1588,11 +1601,11 @@ function addCardValues(hand, cardNames, facedownCount, facedownCard)
 			end
 		end
 	end
-	if value>50 and not (stopCount or objectSets[hand].count==1) then value=100 end
+	if value>50 and not (stopCount or  set.count==1) then value=100 end
 	
-	displayResult(hand, value, soft)
+	displayResult(set, value, soft)
 	--Checks for blackjack
-	if hand == 1 then
+	if set.color=="Dealer" then
 		if #cardNames == 1 and facedownCount == 1 then
 			checkForBlackjack(value, facedownCard)
 		else
@@ -1615,13 +1628,13 @@ local specialHandDisplay = {
 	[70] = "\u{277C}", -- Triple Seven
 	[71] = "\u{2665}", -- Double Joker
 }
-function displayResult(hand, value, soft)
-	objectSets[hand].value = value
-	objectSets[hand].soft = soft
+function displayResult(set, value, soft)
+	set.value = value
+	set.soft = soft
 	if minigame and not (minigame==nil) and minigame.getVar("blackjackDisplayResult") then -- Override
-		local str, col = minigame.Call("blackjackDisplayResult", {set=objectSets[hand], value=value, soft=soft})
+		local str, col = minigame.Call("blackjackDisplayResult", {set=set, value=value, soft=soft})
 		if str then
-			objectSets[hand].btnHandler.editButton({
+			set.btnHandler.editButton({
 				index=0, label=str, color = (col and {r=col.r,g=col.g,b=col.b} or displayCol.Clear)
 			})
 			return
@@ -1635,9 +1648,9 @@ function displayResult(hand, value, soft)
 	end
 	if soft then valueLabel=SoftHandDisplay[valueLabel] or valueLabel end
 	
-	objectSets[hand].btnHandler.editButton({
+	set.btnHandler.editButton({
 		index=0, label=valueLabel,
-		color = getHandDisplayColor(objectSets[hand]),
+		color = getHandDisplayColor(set),
 	})
 end
 
@@ -1693,10 +1706,14 @@ end
 --Restarts loop back up at countCards
 function timerStart()
 	Timer.destroy('blackjack_timer')
-	Timer.create({identifier='blackjack_timer', function_name='findCardsToCount', delay=0.8})
+	Timer.create({identifier='blackjack_timer', function_name='timerStart', delay=0.5})
 	if bonusTimer.getValue() < 1 then
 		resetTimer(1200)
 		bonusRound()
+	end
+	
+	if os.time()>=nextAutoCardCount then -- Recount cards. This updates displays if a card was manually locked in place.
+		findCardsToCount()
 	end
 	
 	if roundTimer and roundStateID then
@@ -2067,6 +2084,8 @@ function clearCards(zoneToClear)
 			destroyObject(object)
 		end
 	end
+	
+	displayResult( findObjectSetFromZone(zoneToClear), 0, false )
 end
 
 function clearCardsOnly(zoneToClear)
@@ -2186,6 +2205,8 @@ function btnFlipCard(card, col)
 				obj.setRotation(targetRot)
 			end
 		end
+		
+		updateHandCounter( set )
 	end
 end
 function cardPlacedCallback(obj, data)
@@ -2230,7 +2251,12 @@ function cardPlacedCallback(obj, data)
 		obj.setTable("blackjack_playerSet", nil)
 	end
 	
-	findCardsToCount()
+	
+	if data.set then
+		updateHandCounter( data.set )
+	else
+		findCardsToCount()
+	end
 end
 function placeCard(pos, flipBool, set, isStarter, fastDraw)
 	if (not mainDeck) or (mainDeck==nil) or mainDeck.getQuantity()<40 then
@@ -3112,7 +3138,8 @@ function clearPlayerActions(zone, ExtraOnly)
 		createPlayerActions(handler, true)
 	end
 	
-	findCardsToCount()
+	-- findCardsToCount()
+	updateHandCounter( set )
 end
 function createPlayerMetaActions(set)
 	if set.tbl and set.tbl~=set.zone and set.color~="Dealer" then
@@ -3366,6 +3393,8 @@ function payButtonPressed(o, color)
 		if color == "Lua" or (not lockout) then
 			dealersTurn = false
 			dealingDealersCards = false
+			
+			findCardsToCount() -- Update values
 			
 			lockoutTimer(10)
 			local dealerValue = objectSets[1].value
