@@ -2007,6 +2007,10 @@ function checkForDeck()
 	local objectsInZone = deckZone.getObjects()
 	for i, deck in ipairs(objectsInZone) do
 		if deck.tag == "Deck" then
+			if mainDeck~=nil and mainDeck~=deck then
+				destroyObject(mainDeck)
+			end
+			
 			mainDeck = deck
 			break
 		end
@@ -2016,6 +2020,10 @@ end
 --marks a deck in tool's logic as "mainDeck", which is the deck dealt from
 function onObjectEnterScriptingZone(zone, object)
 	if zone == deckZone and object.tag == "Deck" then
+		if mainDeck~=nil and mainDeck~=object then
+			destroyObject(mainDeck)
+		end
+		
 		mainDeck = object
 	end
 	
