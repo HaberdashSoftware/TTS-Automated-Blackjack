@@ -2253,6 +2253,7 @@ function cardPlacedCallback(obj, data)
 	if (not obj) or obj==nil then return end -- card gone
 	
 	obj.setLock(true)
+	obj.interactable = false
 	obj.clearButtons()
 	
 	obj.setPosition(data.targetPos)
@@ -2297,6 +2298,11 @@ function cardPlacedCallback(obj, data)
 	else
 		findCardsToCount()
 	end
+	
+	if obj.held_by_color then
+		local new = obj.reload()
+		new.interactable = false
+	end
 end
 function placeCard(pos, flipBool, set, isStarter, fastDraw)
 	if (not mainDeck) or (mainDeck==nil) or mainDeck.getQuantity()<40 then
@@ -2307,16 +2313,16 @@ function placeCard(pos, flipBool, set, isStarter, fastDraw)
 	local targetPos = pos
 	if pos.y then
 		targetPos = {x=pos.x, y=pos.y, z=pos.z}
-		pos.y = pos.y-0.1
+		pos.y = pos.y+0.1
 	elseif pos[2] then
 		targetPos = {pos[1], pos[2], pos[3]}
-		pos[2] = pos[2]-0.1
+		pos[2] = pos[2]+0.1
 	end
 	
-	-- lastCard = mainDeck.takeObject({position=pos, flip=flipBool, callback="cardPlacedCallback", callback_owner=Global, params={targetPos=pos, flip=flipBool, set=set, isStarter=isStarter}})
 	lastCard = mainDeck.takeObject({position=pos, flip=flipBool, callback_function=function(o)
 		cardPlacedCallback(o, {targetPos=targetPos, flip=flipBool, set=set, isStarter=isStarter})
 	end, smooth = (not fastDraw)})
+	lastCard.interactable = false
 	
 	if fastDraw then
 		lastCard.setLock(true)
