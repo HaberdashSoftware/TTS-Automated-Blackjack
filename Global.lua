@@ -1196,13 +1196,19 @@ function swapHandZones(zone1, zone2, tableZ1, tableZ2)
 		local pos = findCardPlacement(zone2, i)
 		card.setPosition(pos)
 		
-		cardPlacedCallback(card, {targetPos=pos, set=findObjectSetFromZone(zone2), isStarter=card.getTable("blackjack_playerSet"), flip=true})
+		Wait.frames(function()
+			if (not card) or card==nil then return end
+			cardPlacedCallback(card, {targetPos=pos, set=findObjectSetFromZone(zone2), isStarter=card.getTable("blackjack_playerSet"), flip=true})
+		end, 1)
 	end
 	for i, card in ipairs(tableZ2) do
 		local pos = findCardPlacement(zone1, i)
 		card.setPosition(pos)
 		
-		cardPlacedCallback(card, {targetPos=pos, set=findObjectSetFromZone(zone1), isStarter=card.getTable("blackjack_playerSet"), flip=true})
+		Wait.frames(function()
+			if (not card) or card==nil then return end
+			cardPlacedCallback(card, {targetPos=pos, set=findObjectSetFromZone(zone1), isStarter=card.getTable("blackjack_playerSet"), flip=true})
+		end, 1)
 	end
 end
 
