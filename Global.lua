@@ -2568,6 +2568,9 @@ function playerBankrupt(handler, color)
 				params.position.y = params.position.y + 1.5
 				local newObj = starter.takeObject(params)
 				
+				local oldDesc = newObj.getDescription()
+				newObj.setDescription( ("%s - %s\n\n%s"):format(Player[color].steam_id, Player[color].steam_name, oldDesc) )
+				
 				if not destroyPrestige then -- Keeping our old prestige, ignore any in the bag
 					if (string.match(newObj.getName(), "New player") or string.match(newObj.getName(), "Prestige %d+")) and not string.find(newObj.getName(), "Trophy") then
 						params.position.y = params.position.y - 1.5
