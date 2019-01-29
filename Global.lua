@@ -1124,16 +1124,26 @@ end
 function activatePowerupEffect(effect, setTarget, powerup, setUser)
 	if powerupEffectFunctions[effect] then
 		if not powerupEffectFunctions[effect](setTarget, powerup, setUser) then
-			Timer.create( {identifier="PowerupFailed"..tostring(powerup.getGUID()), function_name="activatePowerupFailedCallback", parameters={obj=powerup, user=setUser, target=setTarget}, delay=0} )
+			Wait.frames(function() findCardsToCount() end, 2)
+			
+			local timerID = "PowerupFailed"..tostring(powerup.getGUID())
+			Timer.destroy(timerID)
+			Timer.create( {identifier=timerID, function_name="activatePowerupFailedCallback", parameters={obj=powerup, user=setUser, target=setTarget}, delay=0} )
 			return
 		end
 	elseif powerup.getVar("powerupUsed") then
 		if not powerup.call("powerupUsed", {setTarget=setTarget, powerup=powerup, setUser=setUser}) then
-			Timer.create( {identifier="PowerupFailed"..tostring(powerup.getGUID()), function_name="activatePowerupFailedCallback", parameters={obj=powerup, user=setUser, target=setTarget}, delay=0} )
+			Wait.frames(function() findCardsToCount() end, 2)
+			
+			local timerID = "PowerupFailed"..tostring(powerup.getGUID())
+			Timer.destroy(timerID)
+			Timer.create( {identifier=timerID, function_name="activatePowerupFailedCallback", parameters={obj=powerup, user=setUser, target=setTarget}, delay=0} )
 			return
 		end
 	else
-		Timer.create( {identifier="PowerupFailed"..tostring(powerup.getGUID()), function_name="activatePowerupFailedCallback", parameters={obj=powerup, user=setUser, target=setTarget}, delay=0} )
+		local timerID = "PowerupFailed"..tostring(powerup.getGUID())
+		Timer.destroy(timerID)
+		Timer.create( {identifier=timerID, function_name="activatePowerupFailedCallback", parameters={obj=powerup, user=setUser, target=setTarget}, delay=0} )
 		return
 	end
 	
@@ -1163,8 +1173,6 @@ function activatePowerupEffect(effect, setTarget, powerup, setUser)
 		roundTimer.setValue( 10 )
 		roundTimer.Clock.paused = false
 	end
-	
-	findCardsToCount()
 end
 
 function AddPowerup(data) -- If TTS devs ever get over their weird phobia of using functions as variables (How Lua was DESIGNED) this function will be more useful. For now, on the object use `Global.call("AddPowerup", dataTable)` and have a global `powerupUsed` function.
@@ -1236,7 +1244,6 @@ function DoDealersCards()
 	
 	local set = objectSets[1]
 	
-	
 	waitTime(0.5)
 	local targetCardList = findCardsInZone(set.zone)
 	if #targetCardList ~= 0 then
@@ -1262,6 +1269,7 @@ function DoDealersCards()
 	
 	while (set.value<standValue and set.value<=21 and set.value>0 and set.count<5) do
 		if not dealingDealersCards then return end
+		updateHandCounter( set[1] )
 		
 		if set.value>=0 then
 			hitCard(set.btnHandler, "Black")
@@ -1276,6 +1284,7 @@ function DoDealersCards()
 		waitTime(0.5)
 		-- findCardsToCount()
 		updateHandCounter( set[1] )
+		updateAllDisplays()
 		waitTime(0.05)
 	end
 	if not dealingDealersCards then return end
@@ -1616,8 +1625,6 @@ function addCardValues(set, cardNames, facedownCount, facedownCard)
 	if set.color=="Dealer" then
 		if #cardNames == 1 and facedownCount == 1 then
 			checkForBlackjack(value, facedownCard)
-		else
-			revealBool = false
 		end
 	end
 end
@@ -1639,8 +1646,18 @@ local specialHandDisplay = {
 function displayResult(set, value, soft)
 	set.value = value
 	set.soft = soft
+	
+	updateHandDisplay( set )
+end
+
+function updateAllDisplays()
+	for i=1,#objectSets do
+		updateHandDisplay( objectSets[i] )
+	end
+end
+function updateHandDisplay( set )
 	if minigame and not (minigame==nil) and minigame.getVar("blackjackDisplayResult") then -- Override
-		local str, col = minigame.Call("blackjackDisplayResult", {set=set, value=value, soft=soft})
+		local str, col = minigame.Call("blackjackDisplayResult", {set=set, value=set.value, soft=set.soft})
 		if str then
 			set.btnHandler.editButton({
 				index=0, label=str, color = (col and {r=col.r,g=col.g,b=col.b} or displayCol.Clear)
@@ -1649,12 +1666,12 @@ function displayResult(set, value, soft)
 		end
 	end
 	
-	if specialHandDisplay[value] then
-		valueLabel = specialHandDisplay[value]
+	if specialHandDisplay[set.value] then
+		valueLabel = specialHandDisplay[set.value]
 	else
-		valueLabel = value
+		valueLabel = set.value
 	end
-	if soft then valueLabel=SoftHandDisplay[valueLabel] or valueLabel end
+	if set.soft then valueLabel=SoftHandDisplay[valueLabel] or valueLabel end
 	
 	set.btnHandler.editButton({
 		index=0, label=valueLabel,
@@ -1696,18 +1713,18 @@ function checkForBlackjack(value, facedownCard)
 		end
 	end
 	if (facedownValue==0 and value==10) or (facedownValue==10 and value==11) then
-		if revealBool == true then
-			facedownCard.setRotation({0,0,0})
-			
-			local pos = facedownCard.getPosition()
-			pos.y = pos.y + 0.2
-			facedownCard.setPosition(pos)
-			
-			broadcastToAll("Dealer has Blackjack!", {0.9,0.2,0.2})
-			revealBool = false
-		else
-			revealBool = true
-		end
+		facedownCard.setRotation({0,0,0})
+		
+		local pos = facedownCard.getPosition()
+		pos.y = pos.y + 0.2
+		facedownCard.setPosition(pos)
+		
+		broadcastToAll("Dealer has Blackjack!", {0.9,0.2,0.2})
+		
+		Wait.frames(function()
+			updateHandCounter( objectSets[1] )
+			updateAllDisplays()
+		end, 2)
 	end
 end
 
