@@ -8,7 +8,7 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 	local decksOne = Global.call( "forwardFunction", {function_name="findDecksInZone", data={d.setTarget.zone}} )
 	local decksTwo = Global.call( "forwardFunction", {function_name="findDecksInZone", data={d.setUser.zone}} )
 	
-	if (#tableZ1~=0 or #decksOne~=0) and (#tableZ2~=0 or #decksTwo~=0) and (d.setUser.value<=21 or (d.setUser.value==68) or (d.setUser.value==69 and d.setUser.count==2) or (d.setUser.value==71 and d.setUser.count==2) or (d.setUser.value==70 and d.setUser.count==3)) then
+	if (#tableZ1~=0 or #decksOne~=0) and (#tableZ2~=0 or #decksTwo~=0) and (d.setUser.value<=21 or (d.setUser.value>=68 and d.setUser.value<=72)) then
 		local combined = {}
 		local combinedDecks = {}
 		
@@ -91,12 +91,17 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 				if targetHandSize==0 then
 					local pos = Global.call( "forwardFunction", {function_name="findCardPlacement", data={d.setTarget.zone, 1}} )
 					combined[i].setPosition(pos)
-					Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={combined[i], {targetPos=pos, set=d.setTarget, isStarter=true, flip=true}}} )
+					Wait.frames(function()
+						Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={combined[i], {targetPos=pos, set=d.setTarget, isStarter=true, flip=true}}} )
+					end, 1)
 					break
 				elseif userHandSize==0 then
 					local pos = Global.call( "forwardFunction", {function_name="findCardPlacement", data={d.setUser.zone, 1}} )
 					combined[i].setPosition(pos)
-					Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={combined[i], {targetPos=pos, set=d.setUser, isStarter=true, flip=true}}} )
+					
+					Wait.frames(function()
+						Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={combined[i], {targetPos=pos, set=d.setUser, isStarter=true, flip=true}}} )
+					end, 1)
 					break
 				end
 			end
@@ -106,16 +111,23 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 				
 				local pos = Global.call( "forwardFunction", {function_name="findCardPlacement", data={d.setUser.zone, userHandSize}} )
 				combined[i].setPosition(pos)
-				Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={combined[i], {targetPos=pos, set=d.setUser, isStarter=userHandSize<=2, flip=true}}} )
+				Wait.frames(function()
+					Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={combined[i], {targetPos=pos, set=d.setUser, isStarter=userHandSize<=2, flip=true}}} )
+				end, 1)
 			else -- Target Hand
 				targetHandSize = targetHandSize + 1
 				
 				local pos = Global.call( "forwardFunction", {function_name="findCardPlacement", data={d.setTarget.zone, targetHandSize}} )
 				combined[i].setPosition(pos)
-				Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={combined[i], {targetPos=pos, set=d.setTarget, isStarter=targetHandSize<=2, flip=true}}} )
+				Wait.frames(function()
+					Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={combined[i], {targetPos=pos, set=d.setTarget, isStarter=targetHandSize<=2, flip=true}}} )
+				end, 1)
 			end
 		end
-		destroyObject(d.powerup)
+		
+		Wait.frames(function()
+			destroyObject(d.powerup)
+		end, 1)
 		
 		if d.setTarget.color=="Dealer" and Global.getVar("dealersTurn") then
 			startLuaCoroutine( Global, "DoDealersCards" )

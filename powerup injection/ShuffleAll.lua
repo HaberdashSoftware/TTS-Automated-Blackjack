@@ -5,7 +5,7 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 	local tableZ1 = Global.call( "forwardFunction", {function_name="findCardsInZone", data={d.setTarget.zone}} )
 	local decksOne = Global.call( "forwardFunction", {function_name="findDecksInZone", data={d.setTarget.zone}} )
 	
-	if (#tableZ1~=0 or #decksOne~=0) and (d.setUser.value<=21 or (d.setUser.value==68) or (d.setUser.value==69 and d.setUser.count==2) or (d.setUser.value==71 and d.setUser.count==2) or (d.setUser.value==70 and d.setUser.count==3)) then
+	if (#tableZ1~=0 or #decksOne~=0) and (d.setUser.value<=21 or (d.setUser.value>=68 and d.setUser.value<=72)) then
 		local allCards = {}
 		
 		local handsWithCards = {}
@@ -52,7 +52,9 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 					local pos = Global.call( "forwardFunction", {function_name="findCardPlacement", data={handsWithCards[chosenHand].zone, cardCount[chosenHand]}} )
 					local taken = obj.takeObject({position=pos})
 					
-					Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={taken, {targetPos=pos, set=handsWithCards[chosenHand], isStarter=cardCount[chosenHand]<=2, flip=true}}} )
+					Wait.frames(function()
+						Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={taken, {targetPos=pos, set=handsWithCards[chosenHand], isStarter=cardCount[chosenHand]<=2, flip=true}}} )
+					end, 1)
 					
 					table.insert(loggedCards[chosenHand], taken)
 				end
@@ -63,7 +65,10 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 				
 				local pos = Global.call( "forwardFunction", {function_name="findCardPlacement", data={handsWithCards[chosenHand].zone, cardCount[chosenHand]}} )
 				obj.setPosition(pos)
-				Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={obj, {targetPos=pos, set=handsWithCards[chosenHand], isStarter=cardCount[chosenHand]<=2, flip=true}}} )
+				
+				Wait.frames(function()
+					Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={obj, {targetPos=pos, set=handsWithCards[chosenHand], isStarter=cardCount[chosenHand]<=2, flip=true}}} )
+				end, 1)
 				
 				table.insert(loggedCards[chosenHand], obj)
 			end
@@ -89,7 +94,10 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 			
 			local pos = Global.call( "forwardFunction", {function_name="findCardPlacement", data={handsWithCards[fillHand].zone, 1}} )
 			chosenSteal.cards[#chosenSteal.cards].setPosition(pos)
-			Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={obj, {targetPos=pos, set=handsWithCards[fillHand], isStarter=true, flip=true}}} )
+			
+			Wait.frames(function()
+				Global.call( "forwardFunction", {function_name="cardPlacedCallback", data={obj, {targetPos=pos, set=handsWithCards[fillHand], isStarter=true, flip=true}}} )
+			end, 1)
 			
 			table.remove(chosenSteal.cards)
 			
@@ -102,7 +110,9 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 			emptyHands[#emptyHands] = nil
 		end
 		
-		destroyObject(d.powerup)
+		Wait.frames(function()
+			destroyObject(d.powerup)
+		end, 1)
 		
 		return true
 	else
