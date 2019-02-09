@@ -299,11 +299,28 @@ function GetSetting( var, default )
 	return value -- Return value
 end
 
+objectHasLeftContainer = {}
+function onObjectLeaveContainer(bag, obj)
+	if obj.getPosition()[3] < -16 then
+		objectHasLeftContainer[obj] = bag
+		Wait.frames(function()
+			objectHasLeftContainer[obj] = nil
+		end, 2)
+	end
+end
 function onObjectPickedUp(color, object)
 	if color ~= "Black" and not Player[color].promoted and not Player[color].host then
 		if object.getPosition()[3] < -16 then
 			object.translate({0,0.15,0})
 			print(color .. ' picked up a ' .. object.tag .. ' titled "' .. object.getName() .. '" from the hidden zone!')
+			
+			if objectHasLeftContainer[object] then
+				if objectHasLeftContainer[object].tag=="Infinite" then
+					destroyObject(object)
+				else
+					objectHasLeftContainer[object].putObject(object)
+				end
+			end
 		end
 		for i, set in ipairs(objectSets) do
 			local objectsInZone = set.zone.getObjects()
