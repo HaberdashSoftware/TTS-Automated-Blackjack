@@ -65,7 +65,8 @@ local saveQueue = {}
 function DoSaveQueue()
 	if #saveQueue==0 then Timer.destroy("DoSaveQueue") return end
 	
-	local box,col,force = saveQueue[1][1],saveQueue[1][2],saveQueue[1][3]
+	local currentSaveData = saveQueue[1]
+	local box,col,force = currentSaveData[1],currentSaveData[2],currentSaveData[3]
 	
 	while saveQueue[1] and saveQueue[1][1]==box do
 		force = force or saveQueue[1][3]
@@ -112,29 +113,29 @@ function DoSaveQueue()
 	self.putObject(box)
 end
 
-local autoSaveData = {}
-function DoAutoSave(data, ...)
-	local itemData = autoSaveData[data.color] or {}
-	
-	for i=1,math.min(10,#itemData) do
-		local obj = itemData[1]
-		
-		if obj then
-			if not (obj==nil) then -- Do not remove the brackets here. `(not obj==nil)` is not the same as `not (obj==nil)`
-				obj.unlock()
-				data.save.putObject( obj )
-			end
+function DoAutoSave( col, save, itemData, forceSave )
+	if itemData then
+		for i=1,math.min(10,#itemData) do
+			local obj = itemData[1]
+			table.remove( itemData, 1 )
 			
-			table.remove( itemData, 1 )
-		elseif #itemData>1 then
-			table.remove( itemData, 1 )
-		else
-			break
+			if obj then
+				if not (obj==nil) then -- Do not remove the brackets here. `(not obj==nil)` is not the same as `not (obj==nil)`
+					obj.unlock()
+					save.putObject( obj )
+				end
+			elseif #itemData<=0 then
+				break
+			end
 		end
 	end
 	
-	if #itemData<=0 then
-		local set = Global.call( "forwardFunction", {function_name="findObjectSetFromColor", data={data.color}} )
+	if itemData and #itemData>0 then
+		Wait.frames(function()
+			DoAutoSave( col, save, itemData, forceSave )
+		end, 2)
+	else
+		local set = Global.call( "forwardFunction", {function_name="findObjectSetFromColor", data={col}} )
 		
 		if set and set.container.getQuantity()>0 then
 			local params = {}
@@ -145,18 +146,15 @@ function DoAutoSave(data, ...)
 				local taken = set.container.takeObject(params)
 				taken.unlock()
 				
-				-- table.insert( autoSaveData[data.color], taken )
-				data.save.putObject( taken )
+				save.putObject( taken )
 			end
 			
-			Timer.destroy("Autosave"..data.color)
-			Timer.create({identifier="Autosave"..data.color, function_name="DoAutoSave", parameters={save=data.save, color=data.color}, delay=0.5, repetitions=2})
+			Wait.frames(function()
+				DoAutoSave( col, save, itemData, forceSave )
+			end, 2)
 		else
-			autoSaveData[data.color] = nil
+			table.insert(saveQueue, {save, col, forceSave})
 			
-			table.insert(saveQueue, {data.save})
-			
-			Timer.destroy("Autosave"..data.color)
 			Timer.destroy("DoSaveQueue")
 			Timer.create({identifier="DoSaveQueue", function_name="DoSaveQueue", delay=0.25, repetitions=0})
 		end
@@ -166,22 +164,54 @@ end
 function save(o, color)
     if not lockout then
         lockoutTimer(1.2)
-        local foundObjects = playerZone[color].zone.getObjects()
         local saveObjects = self.getObjects()
         local saveFound = false
-        local params = {}
-        params.position = self.getPosition()
-        for i, object in ipairs(foundObjects) do
+		local foundSaves = {}
+		
+        local zoneObjects = playerZone[color].zone.getObjects()
+        for i, object in ipairs(zoneObjects) do
             if string.find(object.getName(), 'Player save:') then
-				table.insert(saveQueue, {object, color, true})
+				foundSaves[object] = true
+				-- table.insert(saveQueue, {object, color, true})
 				saveFound = true
             end
         end
-		if saveFound then
-			Timer.destroy("DoSaveQueue")
-			Timer.create({identifier="DoSaveQueue", function_name="DoSaveQueue", delay=0.25, repetitions=0})
-		else
+		
+		if not saveFound then
 			broadcastToColor("Error: No save found.\nPlease position your save inside your colored zone.", color, {1,0.25,0.25})
+			return
+		end
+		
+		local processed = {}
+		local tblObjects = playerZone[color].tbl.getObjects()
+		local prestigeObjects = playerZone[color].prestige.getObjects()
+		
+		for saveBag in pairs(foundSaves) do
+			saveBag.lock()
+			saveBag.setRotation( {0,0,0} )
+			
+			local plyID = saveBag.getDescription():match("^(%d+)")
+			local objectsTbl = {}
+			
+			-- Table stuff
+			for _,objList in pairs({tblObjects,zoneObjects,prestigeObjects}) do
+				for _,v in pairs(objList) do
+					if v~=saveBag and v.interactable and v.held_by_color~=color and not (processed[v] or foundSaves[v] or v.getLock()) then
+						local id = v.getDescription():match("^(%d+) %- .*")
+						if (not id) or (id==plyID) then
+							table.insert(objectsTbl, v) -- Stuff to save in this loop
+							table.insert(processed, v)  -- Stuff currently in a save queue
+							v.lock()
+						end
+					end
+				end
+			end
+			
+			-- Delayed unfreeze and save
+			print( tostring(color)..": Auto saving" )
+			Wait.frames(function()
+				DoAutoSave( color, saveBag, objectsTbl, true )  -- col, bag, objects, forceSave
+			end, 2)
 		end
     else
         broadcastToColor("Error: Button delay is active.\nWait a moment then try again.", color, {1,0.25,0.25})
@@ -415,11 +445,12 @@ function onPlayerChangeColor(color)
 	-- Auto Save --
 	for _,oldCol in pairs(Player.getAvailableColors()) do
 		local zone = playerZone[oldCol]
-		if oldCol~="Black" and zone.wasSeated and not (Player[oldCol].seated or autoSaveData[oldCol]) then -- Player currently seated or currently saving this table
+		if oldCol~="Black" and zone.wasSeated and not (Player[oldCol].seated) then -- Player not currently seated, but was last check
 			local tblObjects = zone.tbl.getObjects()
 			local prestigeObjects = zone.prestige.getObjects()
 			local zoneObjects = zone.zone.getObjects()
 			
+			-- Find save container
 			local plyID = zone.wasSeatedID
 			local foundSave = nil
 			for _,objList in pairs({tblObjects,zoneObjects,prestigeObjects}) do
@@ -441,7 +472,7 @@ function onPlayerChangeColor(color)
 				
 				local objectsTbl = {}
 				
-				-- Table stuff
+				-- Find savable objects
 				for _,objList in pairs({tblObjects,zoneObjects,prestigeObjects}) do
 					for _,v in pairs(objList) do
 						if v~=foundSave and v.interactable and v.held_by_color~=oldCol and not v.getLock() then
@@ -456,8 +487,9 @@ function onPlayerChangeColor(color)
 				
 				-- Delayed unfreeze and save
 				print( tostring(oldCol)..": Auto saving" )
-				autoSaveData[oldCol] = objectsTbl
-				Timer.create({identifier="Autosave"..oldCol, function_name="DoAutoSave", parameters={save=foundSave, color=oldCol}, delay=0.5, repetitions=#objectsTbl+1})
+				Wait.frames(function()
+					DoAutoSave(oldCol, foundSave, objectsTbl)
+				end, 2)
 			end
 		end
 		
@@ -467,27 +499,30 @@ function onPlayerChangeColor(color)
 	
 	-- Auto load --
     if sitRetrieve and (color ~= "Black" and color ~= "Grey") then
+		local playerID = Player[color].steam_id
         local saveObjects = self.getObjects()
         local params = {}
         params.position = playerZone[color].zone.getPosition()
+		params.callback_function = function(o) loadedPlayerSave(o, color, playerID) end
         for i, object in ipairs(saveObjects) do
-            if object.name:match("%d+$") == Player[color].steam_id then
+            if object.name:match("%d+$") == playerID then
                 params.index = object.index
                 local foundObject = self.takeObject(params)
                 doObjectName(foundObject, color)
                 broadcastToColor("Save found: Welcome back ".. Player[color].steam_name .."!", color, {0.25,1,0.25})
 				
-				hadStarter[Player[color].steam_id or ""] = true
+				hadStarter[playerID or ""] = true
                 return
             end
         end
 		
 		-- Auto New --
-		if not hadStarter[Player[color].steam_id or ""] then
+		if not hadStarter[playerID or ""] then
 			local params = {}
 			params.position = playerZone[color].zone.getPosition()
 			local saveContainer = saveBag.takeObject(params)
 			saveContainer.shuffle()
+			params.callback_function = function(o) loadedPlayerSave(o, color, playerID) end
 			local playerSave = saveContainer.takeObject(params)
 			saveContainer.destruct()
 			doObjectName(playerSave, color)
@@ -502,17 +537,26 @@ function onPlayerChangeColor(color)
 					local oldDesc = taken.getDescription() or ""
 					if #oldDesc>0 then oldDesc = "\n\n"..oldDesc end
 					
-					taken.setDescription( ("%s - %s%s"):format( Player[color].steam_id, Player[color].steam_name, oldDesc ) )
+					taken.setDescription( ("%s - %s%s"):format( playerID, Player[color].steam_name, oldDesc ) )
 					playerSave.putObject(taken)
 				end
 			end
 			starter.destruct()
 			
-			hadStarter[Player[color].steam_id or ""] = true
+			hadStarter[playerID or ""] = true
 		else
 			broadcastToColor("Auto-load: Failed to load save.\nDo you already have your save?", color, {1,0.25,0.25})
 		end
 	end
+end
+function loadedPlayerSave( playerSave, col, id )
+	if not col then return end
+	if (Player[col].seated and Player[col].steam_id==id) then return end -- Player's still here, we don't need to do anything
+	
+	-- Player gone, perform save
+	Wait.frames(function()
+		DoAutoSave( col, playerSave )
+	end, 2)
 end
 
 
