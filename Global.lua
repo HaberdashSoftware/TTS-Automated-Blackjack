@@ -351,7 +351,8 @@ function giveRewardCallback(obj, data)
 		obj.setDescription(Player[data.set.color].steam_id)
 	end
 	
-	obj.setPosition( data.pos )
+	local p = {data.pos.x, data.pos.y+0.5, data.pos.z}
+	obj.setPosition( p )
 end
 function giveReward( id, zone )
 	if not rewards[id] then return end
@@ -362,11 +363,9 @@ function giveReward( id, zone )
 		zone = set.zone
 	end
 	
-	local targetPosition = zone.getPosition()
-	
 	local params = {}
-	params.position = zone.getPosition()
-	params.position.y = params.position.y + 0.25
+	-- params.position = zone.getPosition()
+	params.position = zone.positionToWorld({0.5,0,-0.5})
 	params.callback = "giveRewardCallback"
 	params.callback_owner = Global
 	params.params = {set=set}
@@ -382,13 +381,16 @@ function giveReward( id, zone )
 			obj = item.clone(params)
 			obj.reset()
 			
-			obj.setName("Player save: " .. Player[data.set.color].steam_name)
-			obj.setDescription(Player[data.set.color].steam_id)
+			obj.setName("Player save: " .. Player[set.color].steam_name)
+			obj.setDescription(Player[set.color].steam_id)
 		else
 			obj = item.clone(params)
+			
+			obj.setDescription( ("%s - %s\n\n%s"):format(Player[set.color].steam_id, Player[set.color].steam_name, obj.getDescription()) )
 		end
 		
 		if obj then
+			obj.interactable = true
 			obj.setLock( false )
 		end
 	end
@@ -460,6 +462,8 @@ function onObjectDropped(colorOfDropper, droppedObject)
 			end
 		end
 	end
+	
+	
 end
 
 local preventEnterContainer = {}
@@ -1379,6 +1383,7 @@ function forcedCardDraw(targetZone)
 	placeCard(pos, true, findObjectSetFromZone(targetZone), false)
 end
 
+local spawnPowerupPosModifier = {}
 function spawnRandomPowerup(targetZone)
 	if #powerupTable==0 then return false end
 	
@@ -1402,28 +1407,53 @@ function spawnRandomPowerup(targetZone)
 		return spawnRandomPowerup(targetZone)
 	end
 	
+	
 	local params = {}
-	params.position = targetZone.getPosition()
-	chosenObject.unlock()
-	chosenObject.clone(params)
-	chosenObject.lock()
+	params.position = targetZone.positionToWorld({0.5,0 + (spawnPowerupPosModifier[targetZone] or 0),-0.5})
+	local clone = chosenObject.clone(params)
+	clone.unlock()
+	
+	spawnPowerupPosModifier[targetZone] = (spawnPowerupPosModifier[targetZone] or 0) + 0.04
+	Wait.frames(function()
+		spawnPowerupPosModifier[targetZone] = nil
+	end, 2)
+	
+	local plyCol = (findObjectSetFromZone(targetZone) or {}).color
+	if plyCol=="Dealer" or plyCol:sub(1,5)=="Split" then plyCol = nil end
+	if plyCol and Player[plyCol].seated then
+		clone.setDescription( ("%s - %s\n\n%s"):format( Player[plyCol].steam_id, Player[plyCol].steam_name, clone.getDescription() ) )
+	end
 	
 	return true
 end
 
 function takeRandomObjectFromContainer(targetZone, takeFrom)
 	local params = {}
-	params.position = targetZone.getPosition()
+	-- params.position = targetZone.getPosition()
+	params.position = targetZone.positionToWorld({0.5,0 + (spawnPowerupPosModifier[targetZone] or 0),-0.5})
 	container = getObjectFromGUID(takeFrom).takeObject(params)
 	container.shuffle()
 	takenObject = container.takeObject(params)
 	container.destruct()
+	
+	
+	spawnPowerupPosModifier[targetZone] = (spawnPowerupPosModifier[targetZone] or 0) + 0.04
+	Wait.frames(function()
+		spawnPowerupPosModifier[targetZone] = nil
+	end, 2)
 end
 
 function takeObjectFromContainer(targetZone, takeFrom)
 	local params = {}
-	params.position = targetZone.getPosition()
+	-- params.position = targetZone.getPosition()
+	params.position = targetZone.positionToWorld({0.5,0 + (spawnPowerupPosModifier[targetZone] or 0),-0.5})
 	takenObject = getObjectFromGUID(takeFrom).takeObject(params)
+	
+	
+	spawnPowerupPosModifier[targetZone] = (spawnPowerupPosModifier[targetZone] or 0) + 0.04
+	Wait.frames(function()
+		spawnPowerupPosModifier[targetZone] = nil
+	end, 2)
 	
 	return takenObject
 end
@@ -2501,7 +2531,6 @@ function findCardPlacement(zone, spot)
 	local override = RunBonusFunc( "findCardPlacement", {zone=zone, spot=spot} )
 	if type(override)=="table" then return override end
 	
-	spot = math.min(spot, 6)
 	if zone == objectSets[1].zone then
 		return {6.5 - 2.6 * (spot-1), 1.8, -4.84}
 	else
@@ -2510,7 +2539,7 @@ function findCardPlacement(zone, spot)
 		if spot <= 3 then
 			return {pos.x+1-(1*(spot-1)), pos.y-(scale.y/2)+0.1+(0.1*(spot-1)), pos.z-0.5}
 		else
-			return {pos.x+1-(1*(spot-4)), pos.y-(scale.y/2)+0.4+(0.1*(spot-4)), pos.z+0.5}
+			return {pos.x+1-(1*(math.min(spot, 6)-4)), pos.y-(scale.y/2)+0.4+(0.1*(math.min(spot, 20)-4)), pos.z+0.5}
 		end
 	end
 end
