@@ -300,6 +300,7 @@ function GetSetting( var, default )
 end
 
 objectHasLeftContainer = {}
+objectForceDropped = {}
 function onObjectLeaveContainer(bag, obj)
 	if obj.getPosition()[3] < -16 then
 		objectHasLeftContainer[obj] = bag
@@ -309,7 +310,7 @@ function onObjectLeaveContainer(bag, obj)
 	end
 end
 function onObjectPickedUp(color, object)
-	if color ~= "Black" and not Player[color].promoted and not Player[color].host then
+	if color ~= "Black" and not (Player[color].admin) then
 		if object.getPosition()[3] < -16 then
 			object.translate({0,0.15,0})
 			print(color .. ' picked up a ' .. object.tag .. ' titled "' .. object.getName() .. '" from the hidden zone!')
@@ -320,6 +321,11 @@ function onObjectPickedUp(color, object)
 				else
 					objectHasLeftContainer[object].putObject(object)
 				end
+			else
+				objectForceDropped[object] = true
+				Wait.frames(function()
+					objectForceDropped[object] = nil
+				end, 2)
 			end
 		end
 		for i, set in ipairs(objectSets) do
@@ -400,11 +406,28 @@ end
 
 --When an object is dropped by a player, we check if its name is on a powerup list
 function onObjectDropped(colorOfDropper, droppedObject)
+	-- Dealer zone protections
+	if objectForceDropped[droppedObject] then
+		return
+	elseif droppedObject.getPosition()[3] < -16 and colorOfDropper~="Black" and not Player[colorOfDropper].admin then
+		local trash = getObjectFromGUID("df8d40")
+		if trash and not (trash==nil) then
+			trash.putObject(droppedObject)
+			if colorOfDropper then
+				printToColor( "You dropped an item in the dealer zone; it has ben placed in Trash.", colorOfDropper, {0.75,0.45,0.35} )
+			end
+		end
+		
+		return
+	end
+	
+	-- Powerup use
 	local power = powerupEffectTable[droppedObject.getName()]
 	if power and bonusCanUsePowerup(droppedObject) then
 		return checkPowerupDropZone(colorOfDropper, droppedObject, power.who, power.effect)
 	end
 	
+	-- Chip protections
 	if droppedObject.tag=="Chip" and droppedObject.getDescription():find(Player[colorOfDropper].steam_id, 0, true) then
 		local inOwnZone = false
 		for i=2,#objectSets do
