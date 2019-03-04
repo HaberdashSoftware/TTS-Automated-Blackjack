@@ -1166,10 +1166,11 @@ function activatePowerupFailedCallback(data)
 	end
 end
 function activatePowerupEffect(effect, setTarget, powerup, setUser)
+	findCardsToCount() -- Make sure our hand value is up to date
+	Wait.frames(function() findCardsToCount() end, 2) -- Recount after delay, so we're up to date afterwards too
+	
 	if powerupEffectFunctions[effect] then
 		if not powerupEffectFunctions[effect](setTarget, powerup, setUser) then
-			Wait.frames(function() findCardsToCount() end, 2)
-			
 			local timerID = "PowerupFailed"..tostring(powerup.getGUID())
 			Timer.destroy(timerID)
 			Timer.create( {identifier=timerID, function_name="activatePowerupFailedCallback", parameters={obj=powerup, user=setUser, target=setTarget}, delay=0} )
@@ -1177,8 +1178,6 @@ function activatePowerupEffect(effect, setTarget, powerup, setUser)
 		end
 	elseif powerup.getVar("powerupUsed") then
 		if not powerup.call("powerupUsed", {setTarget=setTarget, powerup=powerup, setUser=setUser}) then
-			Wait.frames(function() findCardsToCount() end, 2)
-			
 			local timerID = "PowerupFailed"..tostring(powerup.getGUID())
 			Timer.destroy(timerID)
 			Timer.create( {identifier=timerID, function_name="activatePowerupFailedCallback", parameters={obj=powerup, user=setUser, target=setTarget}, delay=0} )
@@ -1342,6 +1341,7 @@ function DoDealersCards()
 	else
 		printToAll("Dealer: Stand on ".. tostring(set.value) ..".", {0.1,0.1,0.1})
 	end
+	updateAllDisplays()
 	
 	dealingDealersCards = false
 	
