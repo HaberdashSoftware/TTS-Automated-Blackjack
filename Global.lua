@@ -852,14 +852,40 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 		end
 	end,
 	Destroy = function( setTarget, powerup, setUser )
-		if lastCard ~= nil then
-			lastCard.destruct()
-			destroyObject(powerup)
-			printToAll("Powerup event: " ..setUser.color.. " used " ..powerup.getName().. " and removed last card dealt.", {0.5,0.5,1})
+		local cards = findCardsInZone(setTarget.zone)
+		
+		table.sort( cards, function(a,b)
+			local aStarter = a.getTable("blackjack_playerSet")
+			local bStarter = b.getTable("blackjack_playerSet")
 			
-			if dealersTurn then
+			if aStarter and not bStarter then
+				return true
+			elseif bStarter and not aStarter then
+				return false
+			end
+			
+			local aPos = a.getPosition()
+			local bPos = b.getPosition()
+			
+			if math.abs(aPos.z-bPos.z)<0.25 then -- Allow for a small variance in position, if we're too strict cards might re-order
+				if math.abs(aPos.x-bPos.x)<0.25 then
+					return aPos.y<bPos.y
+				end
+				return aPos.x>bPos.x
+			end
+			
+			return aPos.z<bPos.z
+		end)
+		
+		if cards[#cards] and not (cards[#cards]==nil) then
+			cards[#cards].destruct()
+			destroyObject(powerup)
+			
+			if dealersTurn and setTarget.color=="Dealer" then
 				startLuaCoroutine( Global, "DoDealersCards" )
 			end
+			
+			return true
 		end
 	end,
 	Reveal = function( setTarget, powerup, setUser )
@@ -880,32 +906,35 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 		if roundStateID~=2 and roundStateID~=3 then return end
 		
 		local cardsInZone = findCardsInZone(setTarget.zone)
-		if #cardsInZone > 2 then
-			local newValue = 0
-			for i, card in ipairs(findCardsInZone(setTarget.zone) or {}) do
-				x = card.getPosition().x
-				if x < 3 then
-					card.destruct()
-				else
-					local cardValue = (card.getName()=="Ace" and 1) or cardNameTable[card.getName()] or 0
-					newValue = newValue + cardValue
-				end
-			end
-			
-			if setTarget.color=="Dealer" and (setTarget.value<=21 or (setTarget.value>=68 and setTarget.value<=72)) then
-				for i=2,#objectSets do
-					local s = objectSets[i]
-					if s~=setUser and s.UserColor~=setUser.color and (s.value>0 or s.count>0) and s.value<=21 and ((s.value<setTarget.value and s.value>=newValue) or (s.value==setTarget.value and s.value>newValue)) then -- Helped someone
-						giveReward( "Help", setUser.zone )
-						
-						if not GetSetting("Powerups.MultiHelp", true) then break end
-					end
-				end
-			end
-			
-			destroyObject(powerup)
-			return true
+		if #cardsInZone < 2 then
+			broadcastToColor("This powerup can only be used on a hand with more than two cards.", setUser.color, {1,0.5,0.5})
+			return
 		end
+		
+		local newValue = 0
+		for i, card in ipairs(findCardsInZone(setTarget.zone) or {}) do
+			x = card.getPosition().x
+			if x < 3 then
+				card.destruct()
+			else
+				local cardValue = (card.getName()=="Ace" and 1) or cardNameTable[card.getName()] or 0
+				newValue = newValue + cardValue
+			end
+		end
+		
+		if setTarget.color=="Dealer" and (setTarget.value<=21 or (setTarget.value>=68 and setTarget.value<=72)) then
+			for i=2,#objectSets do
+				local s = objectSets[i]
+				if s~=setUser and s.UserColor~=setUser.color and (s.value>0 or s.count>0) and s.value<=21 and ((s.value<setTarget.value and s.value>=newValue) or (s.value==setTarget.value and s.value>newValue)) then -- Helped someone
+					giveReward( "Help", setUser.zone )
+					
+					if not GetSetting("Powerups.MultiHelp", true) then break end
+				end
+			end
+		end
+		
+		destroyObject(powerup)
+		return true
 	end,
 	["Draw 1"] = function( setTarget, powerup, setUser )
 		if roundStateID~=2 and roundStateID~=3 then return end
