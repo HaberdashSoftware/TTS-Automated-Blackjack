@@ -31,6 +31,12 @@ end
 
 local waitTimer
 function doTradeUp(s, strCol)
+	doTrade( strCol, true )
+end
+function doTradeDown(s, strCol)
+	doTrade( strCol, false )
+end
+function doTrade(strCol, isUp)
 	local ourColor = strCol and self.getName():lower():find(strCol:lower())
 	if not (strCol and (Player[strCol].admin or ourColor)) then
 		broadcastToColor( "This does not belong to you!", strCol, {1,0.2,0.2} )
@@ -39,12 +45,21 @@ function doTradeUp(s, strCol)
 	
 	local contents = self.getObjects()
 	
+	if #contents>5 and not isUp then
+		broadcastToColor( "Too many objects to trade down!", strCol, {1,0.2,0.2} )
+		return
+	end
+	
 	local params = {}
 	local chips = {}
 	
 	local plyID = Player[strCol].steam_id
+	local totalCount = 0
+	local foundObjects = {}
 	-- Find valid chips
 	for i = #contents,1,-1 do
+		if totalCount>5 and not isUp then break end
+		
 		if nameToIndex[contents[i].name] then
 			params.index = contents[i].index
 			
@@ -60,19 +75,45 @@ function doTradeUp(s, strCol)
 					local count = newObj.getQuantity()
 					if count==-1 then count = 1 end
 					
+					totalCount = totalCount + count
+					
 					chips[nameToIndex[contents[i].name]] = (chips[nameToIndex[contents[i].name]] or 0) + count
 					
-					newObj.destruct()
+					-- newObj.destruct()
+					table.insert(foundObjects, newObj)
 				end
 			end
 		end
 	end
 	
-	-- Find highest chips from values
-	for i=1,#chipConversionTable do -- Most entries should be nil, but this means we only need to loop once
-		if chips[i] and chips[i]>=chipConversionTable[i].tierUp and chipConversionTable[i+1] then
-			chips[i+1] = (chips[i+1] or 0) + math.floor(chips[i]/chipConversionTable[i].tierUp)
-			chips[i] = chips[i] % chipConversionTable[i].tierUp -- Modulo (remainder)
+	if totalCount>5 and not isUp then
+		broadcastToColor( "Too many chips to trade down!", strCol, {1,0.2,0.2} )
+		Wait.frames(function()
+			for i=1,#foundObjects do
+				self.putObject( foundObjects[i] )
+				destroyObject( foundObjects[i] )
+			end
+		end, 1)
+		return
+	end
+	
+	for i=1,#foundObjects do
+		destroyObject( foundObjects[i] )
+	end
+	
+	if isUp then -- Find highest chips from values
+		for i=1,#chipConversionTable do -- Most entries should be nil, but this means we only need to loop once
+			if chips[i] and chips[i]>=chipConversionTable[i].tierUp and chipConversionTable[i+1] then
+				chips[i+1] = (chips[i+1] or 0) + math.floor(chips[i]/chipConversionTable[i].tierUp)
+				chips[i] = chips[i] % chipConversionTable[i].tierUp -- Modulo (remainder)
+			end
+		end
+	else -- Same thing, but trading down instead
+		for i=1,#chipConversionTable do
+			if chips[i] and chipConversionTable[i-1] and not chipConversionTable[i].upOnly then
+				chips[i-1] = (chips[i-1] or 0) + (chipConversionTable[i-1].tierUp * (chips[i] or 0))
+				chips[i] = nil -- If there's chips on the next step up, they'll overwrite this value next iteration
+			end
 		end
 	end
 	
@@ -83,9 +124,7 @@ function doTradeUp(s, strCol)
 	params.callback_function = unlockObject
 	params.smooth = false
 	
-	for k,v in pairs(chips) do -- Now we're only interested in things with values
-		local found = nil
-		
+	for k,v in pairs(chips) do -- Loop through any values we have to spawn chips
 		if params.position.y>20 then
 			params.position.y = self.getPosition().y + 2
 			params.position.z = params.position.z + 2
@@ -109,26 +148,24 @@ function doTradeUp(s, strCol)
 					params.callback_function = unlockObject
 				end
 				
-				while v>0 do
+				local stack = nil
+				for i=1,v do
 					local newChip = bag.takeObject(params)
 					
 					if ourColor then
 						newChip.setDescription( ("%s - %s"):format( Player[strCol].steam_id, Player[strCol].steam_name ) )
 					end
 					
-					if (not stackSeparator) and (not found) then
-						found = newChip
-						
-						if v>2 then
-							table.insert(toTake, newChip)
-							
-							newChip.setLock(true)
-							newChip.interactable = false
+					Wait.frames(function()
+						if stack then
+							stack = stack.putObject( newChip )
+							destroyObject( newChip ) -- This only really prevents the animation, makes it look much neater for large quantities
+						else
+							stack = newChip
 						end
-					end
+					end, i<=2 and 1 or 2)
 					
 					params.position.y = params.position.y + 0.5
-					v = v-1
 				end
 			end
 		end
@@ -165,7 +202,13 @@ end
 
 function makeButtons()
 	self.createButton({
-		click_function='doTradeUp', label='Trade Up', function_owner=self,
-		position={0,0,1.25}, rotation={0,0,0}, width=600, height=190, font_size=130
+		click_function='doTradeUp', label='\u{2191}', function_owner=self,
+		position={-0.27,0,1.23}, rotation={0,0,0}, width=250, height=200, font_size=150,
+		tooltip = "Trade your chips up to the next tier.",
+	})
+	self.createButton({
+		click_function='doTradeDown', label='\u{2193}', function_owner=self,
+		position={0.27,0,1.23}, rotation={0,0,0}, width=250, height=200, font_size=150,
+		tooltip = "Trade your chips down to the previous tier.",
 	})
 end
