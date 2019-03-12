@@ -50,6 +50,12 @@ function doTrade(strCol, isUp)
 		return
 	end
 	
+	if not chipConverter then chipConverter = getObjectFromGUID(chipConverterGUID) end -- Converter missing, attempt to find
+	if not chipConverter then -- Still missing, abort
+		broadcastToColor( "Chip converter is missing! Try again later.", strCol, {1,0.2,0.2} )
+		return
+	end
+	
 	local params = {}
 	local chips = {}
 	
@@ -131,43 +137,22 @@ function doTrade(strCol, isUp)
 		end
 		
 		if v and v>0 then
-			local bag = getObjectFromGUID(chipConversionTable[k].GUID)
-			if bag then
+			params.position.y = params.position.y + 1
+			
+			if stackSeparator then
+				params.callback_function = nil
+				
+				local sep = stackSeparator.clone(params)
+				table.insert(separators, sep)
+				
+				sep.setLock( true )
+				sep.interactable = false
+				
 				params.position.y = params.position.y + 1
-				
-				if stackSeparator then
-					params.callback_function = nil
-					
-					local sep = stackSeparator.clone(params)
-					table.insert(separators, sep)
-					
-					sep.setLock( true )
-					sep.interactable = false
-					
-					params.position.y = params.position.y + 1
-					params.callback_function = unlockObject
-				end
-				
-				local stack = nil
-				for i=1,v do
-					local newChip = bag.takeObject(params)
-					
-					if ourColor then
-						newChip.setDescription( ("%s - %s"):format( Player[strCol].steam_id, Player[strCol].steam_name ) )
-					end
-					
-					Wait.frames(function()
-						if stack then
-							stack = stack.putObject( newChip )
-							destroyObject( newChip ) -- This only really prevents the animation, makes it look much neater for large quantities
-						else
-							stack = newChip
-						end
-					end, i<=2 and 1 or 2)
-					
-					params.position.y = params.position.y + 0.5
-				end
+				params.callback_function = unlockObject
 			end
+			
+			chipConverter.Call( "spawnChip", {id=k, num=v, pos=params.position} )
 		end
 	end
 	
