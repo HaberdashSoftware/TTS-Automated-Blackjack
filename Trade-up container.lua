@@ -50,8 +50,8 @@ function doTrade(strCol, isUp)
 		return
 	end
 	
-	if not chipConverter then chipConverter = getObjectFromGUID(chipConverterGUID) end -- Converter missing, attempt to find
-	if not chipConverter then -- Still missing, abort
+	if (not chipConverter) or (chipConverter==nil) then chipConverter = getObjectFromGUID(chipConverterGUID) end -- Converter missing, attempt to find
+	if (not chipConverter) or (chipConverter==nil)  then -- Still missing, abort
 		broadcastToColor( "Chip converter is missing! Try again later.", strCol, {1,0.2,0.2} )
 		return
 	end
