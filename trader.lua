@@ -89,6 +89,10 @@ function onLoad()
 end
 function doNull() end
 
+function getObjectName( obj )
+	return obj.getVar("__trader_ObjectName") or obj.getName():match("^%s*(.-)%s*$") or obj.getName()
+end
+
 
 -- Buy Item --
 --------------
@@ -118,11 +122,15 @@ function spawnObject( item, c, spawnAs )
 			clone.reset()
 		end
 		
+		local formattedObjectName = (clone.getName():match("^%s*(.-)%s*$") or clone.getName()):gsub("[\\\"]", "\\%1")
 		if spawnAs and ourColor and Player[c].seated then
 			local newStr = os.date(spawnAs, os.time()):gsub("{name}", Player[c].steam_name):gsub("{id}", Player[c].steam_id):gsub("{color}", c)
 			
 			clone.setName( newStr )
 		end
+		
+		clone.setLuaScript( clone.getLuaScript() .. ("\n\n__trader_ObjectName = \"%s\""):format(formattedObjectName) )
+		clone.reload()
 	end, 0)
 end
 function buyItem( data, c )
@@ -150,16 +158,18 @@ function buyItem( data, c )
 			
 			if data.req then
 				local req = {}
-				for i=1,#data.req do
+				for i=1,#data.req do -- Copy table
 					req[data.req[i]] = true
 				end
+				
 				for _,zone in pairs({zoneObjects, tableObjects, prestigeObjects}) do
 					for _, obj in ipairs(zone) do
-						req[obj.getName():match("^%s*(.-)%s*$") or obj.getName() ] = nil
+						-- req[obj.getName():match("^%s*(.-)%s*$") or obj.getName() ] = nil
+						req[ getObjectName(obj) ] = nil -- Remove entry from table
 					end
 				end
 				
-				for missing in pairs(req) do
+				for missing in pairs(req) do -- If at least one requirement isn't met
 					broadcastToColor( ("You need a %s on your table to buy this item."):format(tostring(missing)), c, {1,0.2,0.2} )
 					return
 				end
@@ -202,7 +212,8 @@ function processCostAll( c, data, set )
 		-- for j, item in ipairs(zone) do
 		for i=1,#zone do
 			local item = zone[i]
-			local name = item.getName():match("^%s*(.-)%s*$") or item.getName()
+			-- local name = item.getName():match("^%s*(.-)%s*$") or item.getName()
+			local name = getObjectName(item)
 			if item and not (item==nil) and missingCost[name] and missingCost[name]>0 and item.interactable and not (item.getLock()) then
 				local count = item.getQuantity()
 				if count==-1 then count = 1 end
@@ -301,7 +312,8 @@ function processCostAny( c, data, set )
 		-- for j, item in ipairs(zone) do
 		for i=1,#zone do
 			local item = zone[i]
-			local name = item.getName():match("^%s*(.-)%s*$") or item.getName()
+			-- local name = item.getName():match("^%s*(.-)%s*$") or item.getName()
+			local name = getObjectName( obj )
 			
 			for i=1,#missingFromSets do
 				local missingCost = missingFromSets[i]
