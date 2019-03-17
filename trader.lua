@@ -313,7 +313,7 @@ function processCostAny( c, data, set )
 		for i=1,#zone do
 			local item = zone[i]
 			-- local name = item.getName():match("^%s*(.-)%s*$") or item.getName()
-			local name = getObjectName( obj )
+			local name = getObjectName( item )
 			
 			for i=1,#missingFromSets do
 				local missingCost = missingFromSets[i]
