@@ -13,10 +13,10 @@ local classData = {
 	["Fighter"] = {
 		hp = 10,
 		actions = {
-			{name="Attack", tooltip=("Deal 3 damage to the %s."):sub(monsterName), effects={
+			{name="Attack", tooltip=("Deal 3 damage to the %s."):format(monsterName), effects={
 				{ dmg = 3, icon = "https://i.imgur.com/ZyO8EgA.png?1" },
 			}},
-			{name="Reckless Stance", tooltip=("For the next 4 turns, deal 2 additional damage to %s.\nIncreases all damage taken by 1."):sub(monsterName), effects= {
+			{name="Reckless Stance", tooltip=("For the next 4 turns, deal 2 additional damage to %s.\nIncreases all damage taken by 1."):format(monsterName), effects= {
 				{ dmg = 2, vulnerability = 1, turns = 4, icon = "https://i.imgur.com/Zf9UXJu.png" },
 			}},
 			{name="Defend",  tooltip="Reduce damage taken by 2 this round.", effects={
@@ -27,7 +27,7 @@ local classData = {
 	["Paladin"] = {
 		hp = 8,
 		actions = {
-			{name="Attack", tooltip=("Deal 3 damage to %s."):sub(monsterName), effects={
+			{name="Attack", tooltip=("Deal 3 damage to %s."):format(monsterName), effects={
 				{ dmg = 3, icon = "https://i.imgur.com/ZyO8EgA.png?1" },
 			}},
 			{name="Heal Self", tooltip="Restore 2 hit points", effects={
@@ -44,10 +44,10 @@ local classData = {
 	["Wizard"] = {
 		hp = 4,
 		actions = {
-			{name="Fireball",  tooltip=("Deal 5 damage to the %s."):sub(monsterName), effects={
+			{name="Fireball",  tooltip=("Deal 5 damage to the %s."):format(monsterName), effects={
 				{ dmg = 5, icon = "https://i.imgur.com/ud2siei.png?1" },
 			}},
-			{name="Lightning Storm", tooltip=("At the end of the next 3 turns, deal 3 damage to %s."):sub(monsterName), effects={
+			{name="Lightning Storm", tooltip=("At the end of the next 3 turns, deal 3 damage to %s."):format(monsterName), effects={
 				{ dmg = 3, icon = "https://i.imgur.com/dY1FlB6.png?1", turns = 3 },
 			}},
 			{name="Ice Shield",  tooltip="Reduce damage taken by 3 for 3 turns.",effects={
@@ -58,7 +58,7 @@ local classData = {
 	["Cleric"] = {
 		hp = 6,
 		actions = {
-			{name="Smite",  tooltip=("Deal 1 damage to %s and heal yourself for 2 hit points."):sub(monsterName), effects={
+			{name="Smite",  tooltip=("Deal 1 damage to %s and heal yourself for 2 hit points."):format(monsterName), effects={
 				{ dmg = 1, heal = 2, icon = "https://i.imgur.com/l7XzInu.png?1" },
 			}},
 			{name="Heal Target", target = TARGET_ALLY, tooltip="Heal a player for 4 hit points.", effects={
@@ -76,7 +76,7 @@ local classData = {
 	["Thief"] = {
 		hp = 8,
 		actions = {
-			{name="Sneak Attack",  tooltip=("Deal 3 damage to the %s."):sub(monsterName), effects={
+			{name="Sneak Attack",  tooltip=("Deal 3 damage to the %s."):format(monsterName), effects={
 				{ dmg = 3, icon = "https://i.imgur.com/CWqZM87.png" },
 			}},
 			{name="Pillage", tooltip = "Gain one loot for the next 3 turns. Increase damage taken by 1.", effects={
@@ -90,7 +90,7 @@ local classData = {
 	["Druid"] = {
 		hp = 6,
 		actions = {
-			{name="Vine Snare",  tooltip=("Deal 2 damage to %s.\nDeal an additional 4 damage if you are attacked this round.\nReduce damage taken by 1 this round."):sub(monsterName), effects={
+			{name="Vine Snare",  tooltip=("Deal 2 damage to %s.\nDeal an additional 4 damage if you are attacked this round.\nReduce damage taken by 1 this round."):format(monsterName), effects={
 				{ dmg = 2, thorns = 4, def = 1, icon = "https://i.imgur.com/iywrYNA.png" },
 			}},
 			{name="Plant Growth", target = TARGET_ALLY, tooltip="Target player regenerates 1 health.\nPlayer deals 2 damage when attacked.\nPlayer's damage taken is reduced by 1.\nLasts for 4 rounds.", effects={
@@ -1266,8 +1266,8 @@ function doDragonAttacks( numAttacks )
 end
 
 function doDragonDeath()
-	broadcastToAll( ("%s has been defeated!"):sub( monsterName:sub(1,1):upper() .. monsterName:sub(2,-1) ), {0.2, 0.7, 0.2} )
-	printToAll( ("Survivors pillage %s's hoard!"):sub(monsterName), {0.2, 0.7, 0.2} )
+	broadcastToAll( ("%s has been defeated!"):format( monsterName:sub(1,1):upper() .. monsterName:sub(2,-1) ), {0.2, 0.7, 0.2} )
+	printToAll( ("Survivors pillage %s's hoard!"):format(monsterName), {0.2, 0.7, 0.2} )
 	
 	self.RPGFigurine.die()
 	
