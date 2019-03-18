@@ -104,6 +104,7 @@ local sortedClasses = {}
 for k in pairs(classData) do table.insert(sortedClasses, k) end
 table.sort(sortedClasses)
 
+FigurineModeChanged = false
 local DragonHeartPowerup = [[-- Unique powerup from Dragon's Lair
 local objData = {
 	scale = {0.72,0.72,0.72},
@@ -279,6 +280,9 @@ local dragonDebuffs = {
 	function()
 		broadcastToAll( "The dragon takes flight!", {0.7, 0.2, 0.2} )
 		printToAll( "You can't escape this turn!", {0.7, 0.2, 0.2} )
+		
+		FigurineModeChanged = true
+		self.RPGFigurine.changeMode()
 		
 		local effects = {preventRun = true, icon="https://i.imgur.com/5OkM3Pq.png"}
 		
@@ -649,6 +653,11 @@ end
 -- Start Turn
 
 function startTurn()
+	if FigurineModeChanged then -- Reset animation
+		FigurineModeChanged = false
+		self.RPGFigurine.changeMode()
+	end
+	
 	inTurn = true
 	hasStarted = true
 	
@@ -1226,6 +1235,8 @@ function doDragonDebuffs()
 	dragonDebuffs[ math.random(1, #dragonDebuffs) ]()
 end
 function doDragonAttacks( numAttacks )
+	self.RPGFigurine.attack()
+	
 	if (not numAttacks) or numAttacks<=1 then
 		dragonAttacks[ math.random(1, #dragonAttacks) ]()
 		return
@@ -1255,6 +1266,8 @@ end
 function doDragonDeath()
 	broadcastToAll( "The dragon has been defeated!", {0.2, 0.7, 0.2} )
 	printToAll( "Survivors pillage the dragon's hoard!", {0.2, 0.7, 0.2} )
+	
+	self.RPGFigurine.die()
 	
 	local seated = getSeatedPlayers()
 	for i=1,#seated do -- Convert to reference table, saves us looping multiple times
