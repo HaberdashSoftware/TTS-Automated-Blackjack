@@ -96,7 +96,6 @@ local classData = {
 			}},
 			{name="Purify", target = TARGET_ALL, tooltip="Remove debuffs from all players.", effects={
 				{ purify = true, icon = "https://i.imgur.com/iKJuoEB.png" },
-				-- { purify = true, icon = "https://i.imgur.com/iKJuoEB.png", target = TARGET_SELF },
 			}},
 		}
 	},
@@ -961,7 +960,11 @@ local effToFunc = {
 				destroyObject(object)
 			end
 		end
-		printToColor( "All dragon effects have been removed from you.", col, {0.7, 0.2, 0.2} )
+		
+		local targetSet = Global.call("forwardFunction", {function_name="findObjectSetFromZone", data={zone}} )
+		if targetSet and targetSet.color then
+			printToColor( "All dragon effects have been removed from you.", targetSet.color, {0.7, 0.2, 0.2} )
+		end
 	end
 }
 local effToString = {
