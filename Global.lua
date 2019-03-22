@@ -564,7 +564,9 @@ end
 function doPrestigeDestructionBagCallback(obj, data)
 	if data.destroyPowerups and powerupEffectTable[obj.getName()] then return obj.destruct() end
 	if data.destroyChips and obj.tag=="Chip" and not powerupEffectTable[obj.getName()] then return obj.destruct() end
-	if data.destroyPrestige and ((string.match(obj.getName(), "New player") or string.match(obj.getName(), "Prestige %d+")) and not string.find(obj.getName(), "Trophy")) then
+	
+	local name = obj.getVar("__trader_ObjectName") or obj.getName()
+	if data.destroyPrestige and (newObj.getVar("PrestigeLevel") or ((string.match(name(), "New player") or string.match(name, "Prestige %d+")) and not string.find(name, "Trophy"))) then
 		return obj.destruct()
 	end
 	
@@ -631,6 +633,7 @@ function doChipDestruction( set, destroyChips, destroyPowerups, destroyPrestige 
 		
 		for _,zone in pairs({zoneObjects, tableObjects, prestigeObjects}) do
 			for _, obj in ipairs(zone) do
+				local name = obj.getVar("__trader_ObjectName") or obj.getName()
 				if obj.getVar("onBlackjackDestroyItems") then
 					obj.Call("onBlackjackDestroyItems", {destroyChips=destroyChips, destroyPowerups=destroyPowerups, destroyPrestige=destroyPrestige} )
 				elseif destroyChips and obj.tag == "Chip" then
@@ -639,7 +642,7 @@ function doChipDestruction( set, destroyChips, destroyPowerups, destroyPrestige 
 					end
 				elseif destroyPowerups and powerupEffectTable[obj.getName()] then
 					destroyObject(obj)
-				elseif destroyPrestige and ((string.match(obj.getName(), "New player") or string.match(obj.getName(), "Prestige %d+")) and not string.find(obj.getName(), "Trophy")) then
+				elseif destroyPrestige and (obj.getVar("PrestigeLevel") or ((string.match(name, "New player") or string.match(name, "Prestige %d+")) and not string.find(name, "Trophy"))) then
 					destroyObject(obj)
 				elseif obj.tag=="Bag" then
 					local params = {}
@@ -661,6 +664,7 @@ function doChipDestruction( set, destroyChips, destroyPowerups, destroyPrestige 
 		
 		local plyID = Player[set.color].seated and Player[set.color].steam_id
 		for _,obj in pairs(getAllObjects()) do -- Simpler destruction here, only check first layer
+			local name = obj.getVar("__trader_ObjectName") or obj.getName()
 			local objID = obj.getDescription():match("^(%d+) %- .*")
 			if objID and objID==plyID then
 				if obj.getVar("onBlackjackDestroyItems") then
@@ -671,7 +675,7 @@ function doChipDestruction( set, destroyChips, destroyPowerups, destroyPrestige 
 					end
 				elseif destroyPowerups and powerupEffectTable[obj.getName()] then
 					destroyObject(obj)
-				elseif destroyPrestige and ((string.match(obj.getName(), "New player") or string.match(obj.getName(), "Prestige %d+")) and not string.find(obj.getName(), "Trophy")) then
+				elseif destroyPrestige and (obj.getVar("PrestigeLevel") or ((string.match(name, "New player") or string.match(name, "Prestige %d+")) and not string.find(name, "Trophy"))) then
 					destroyObject(obj)
 				end
 			end
@@ -1030,22 +1034,29 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 		end
 	end,
 	["Prestige Token"] = function( setTarget, powerup, setUser )
-		local currentPrestige = "0"
 		local prestigeObj
 		local set = findObjectSetFromZone(setUser.zone)
 		local zoneObjects = set.prestige.getObjects()
+		
+		local level = 0
 		for i, object in ipairs(zoneObjects) do
-			local findMatch = string.match(object.getName(), "Prestige (%d+)")
-			if findMatch and not string.find(object.getName(), "Trophy") then
-				currentPrestige = findMatch
-				prestigeObj = object
-			elseif string.find(object.getName(), "New player") and not string.find(object.getName(), "Trophy") then
-				currentPrestige = 0
-				prestigeObj = object
+			local findLevel = object.getVar("PrestigeLevel")
+			if findLevel then
+				if findLevel>=level then
+					level = findLevel
+					prestigeObj = object
+				end
+			else
+				local findMatch = string.match(object.getVar("__trader_ObjectName") or object.getName(), "Prestige (%d+)")
+				if findMatch and tonumber(findMatch)>=level and not string.find(object.getName(), "Trophy") then
+					level = tonumber(findMatch) or 0
+					prestigeObj = object
+				elseif level<=0 and string.find(object.getName(), "New player") and not string.find(object.getName(), "Trophy") then
+					level = 0
+					prestigeObj = object
+				end
 			end
 		end
-		
-		local level = tonumber(currentPrestige)
 		
 		if prestigeObj and level then
 			if doPrestige(set, level+1) then
@@ -1472,10 +1483,10 @@ function takeRandomObjectFromContainer(targetZone, takeFrom)
 	end, 2)
 end
 
-function takeObjectFromContainer(targetZone, takeFrom)
+function takeObjectFromContainer(targetZone, takeFrom, posOverride)
 	local params = {}
 	-- params.position = targetZone.getPosition()
-	params.position = targetZone.positionToWorld({0.5,0 + (spawnPowerupPosModifier[targetZone] or 0),-0.5})
+	params.position = targetZone.positionToWorld(posOverride or {0.5,0 + (spawnPowerupPosModifier[targetZone] or 0),-0.5})
 	takenObject = getObjectFromGUID(takeFrom).takeObject(params)
 	
 	
@@ -2687,7 +2698,8 @@ function playerBankrupt(handler, color)
 				newObj.setDescription( ("%s - %s\n\n%s"):format(Player[color].steam_id, Player[color].steam_name, oldDesc) )
 				
 				if not destroyPrestige then -- Keeping our old prestige, ignore any in the bag
-					if (string.match(newObj.getName(), "New player") or string.match(newObj.getName(), "Prestige %d+")) and not string.find(newObj.getName(), "Trophy") then
+					local name = newObj.getVar("__trader_ObjectName") or newObj.getName()
+					if newObj.getVar("PrestigeLevel") or (string.match(name, "New player") or string.match(name, "Prestige %d+")) and not string.find(name, "Trophy") then
 						params.position.y = params.position.y - 1.5
 						destroyObject(newObj)
 					end
@@ -2759,7 +2771,7 @@ function playerPrestige(handler, color)
 					if obj.tag=="Chip" and chipListIndex[obj.getName()] then
 						table.insert(chips, obj.getName())
 					else
-						local level = obj.getVar("PrestigeLevel") or tonumber((not string.find(obj.getName(), "Trophy")) and string.match(obj.getName(), "Prestige (%d+)") or "")
+						local level = obj.getVar("PrestigeLevel") or tonumber((not string.find(obj.getName(), "Trophy")) and string.match(obj.getVar("__trader_ObjectName") or obj.getName(), "Prestige (%d+)") or "")
 						if level then
 							if (not prestigeObject) or level>prestigeLevel then
 								prestigeObject = obj
@@ -2854,7 +2866,7 @@ function doPrestige(set, targetLevel)
 	if targetObj.Call("doPrestige", {set=set} ) then
 		doPrestigeDestruction( set )
 		
-		takeObjectFromContainer( set.tbl, "996d26" )
+		takeObjectFromContainer( set.tbl, "996d26", {0,0.5,0.45} )
 		
 		return true
 	end
@@ -3721,10 +3733,12 @@ function getPrestige(zone)
 	local set = findObjectSetFromZone(zone)
 	local zoneObjects = set.prestige.getObjects()
 	for i, object in ipairs(zoneObjects) do
-		local findStart, findEnd, findNumber = string.find(object.getName(), "Prestige (%d+)")
-		if findStart and not string.find(object.getName(), "Trophy") then
-			return (tonumber(findNumber) or 0)
-		end
+		-- local findStart, findEnd, findNumber = string.find(object.getVar("__trader_ObjectName") or object.getName(), "Prestige (%d+)")
+		-- if findStart and not string.find(object.getName(), "Trophy") then
+			-- return (tonumber(findNumber) or 0)
+		-- end
+		local level = obj.getVar("PrestigeLevel")
+		if level then return level end
 	end
 	return 0
 end
