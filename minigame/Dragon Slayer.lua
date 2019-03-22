@@ -193,6 +193,7 @@ local effect = {
 }
 function powerupUsed( d )
 	if Global.getVar("roundStateID")~=2 and Global.getVar("roundStateID")~=3 then return end
+	if d.setTarget.value==0 and d.setTarget.count==0 then return end
 	
 	effect[math.random(1,#effect)](d.setUser, d.setTarget, d.powerup)
 	
