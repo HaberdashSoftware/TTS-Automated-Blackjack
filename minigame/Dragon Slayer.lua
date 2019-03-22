@@ -673,6 +673,10 @@ function startTurn()
 		local set = sets[i]
 		setupActions(set)
 	end
+	
+	if #waitingFor==0 then -- No players available
+		endTurn()
+	end
 end
 
 function setupActions(set)
@@ -686,34 +690,45 @@ function setupActions(set)
 		seated[i] = nil
 	end
 	
-	if playingUsers[set.color] and playingUsers[set.color].CurHP>0 then
-		playingUsers[set.color].PendingAction = nil
-		local class = playingUsers[set.color].Class
-		if seated[set.color] and class and classData[class] then
-			set.btnHandler.createButton({
-				label="Run", click_function="actionRun", function_owner=self,
-				position={-1, 0.25, 0}, rotation={0,0,0}, width=400, height=350, font_size=130
-			})
-			set.btnHandler.createButton({
-				label="Loot", click_function="actionLoot", function_owner=self,
-				position={1, 0.25, 0}, rotation={0,0,0}, width=400, height=350, font_size=130
-			})
-			
-			local actions = classData[class].actions
-			for i=1,#actions do
-				set.btnHandler.createButton({
-					label=actions[i].name or "<Action>", click_function="takeAction"..i, function_owner=self, scale = {1.2,1.2,1.2},
-					position={0, 0.25, 0.25 + i*0.9}, rotation={0,0,0}, width=950, height=325, font_size=130, tooltip = actions[i].tooltip
-				})
+	if (not playingUsers[set.color]) or playingUsers[set.color].CurHP<=0 then return end
+	playingUsers[set.color].PendingAction = nil
+	
+	
+	for i, object in ipairs(set.zone.getObjects()) do
+		if (object.tag == "Figurine" and object.getLock()) and object.getName()~="Loot" then
+			local desc = object.getDescription()
+			if desc:match("You cannot take actions") then
+				broadcastToColor( "You struggle. No action can be taken.", set.color, {0.5,1,0} )
+				return
 			end
-			
-			broadcastToColor( "You have 30 seconds to choose an action.", set.color, {0.5,1,0} )
-			
-			table.insert( waitingFor, set.color )
-		else
-			playingUsers[set.color] = nil
-			clearAll(set.color, true)
 		end
+	end
+	
+	local class = playingUsers[set.color].Class
+	if seated[set.color] and class and classData[class] then
+		set.btnHandler.createButton({
+			label="Run", click_function="actionRun", function_owner=self,
+			position={-1, 0.25, 0}, rotation={0,0,0}, width=400, height=350, font_size=130
+		})
+		set.btnHandler.createButton({
+			label="Loot", click_function="actionLoot", function_owner=self,
+			position={1, 0.25, 0}, rotation={0,0,0}, width=400, height=350, font_size=130
+		})
+		
+		local actions = classData[class].actions
+		for i=1,#actions do
+			set.btnHandler.createButton({
+				label=actions[i].name or "<Action>", click_function="takeAction"..i, function_owner=self, scale = {1.2,1.2,1.2},
+				position={0, 0.25, 0.25 + i*0.9}, rotation={0,0,0}, width=950, height=325, font_size=130, tooltip = actions[i].tooltip
+			})
+		end
+		
+		broadcastToColor( "You have 30 seconds to choose an action.", set.color, {0.5,1,0} )
+		
+		table.insert( waitingFor, set.color )
+	else
+		playingUsers[set.color] = nil
+		clearAll(set.color, true)
 	end
 end
 
@@ -981,8 +996,13 @@ local effToFunc = {
 local effToString = {
 	dmg = "Deal %i damage\n",
 	def = "Reduce damage taken by %i\n",
-	thorns = "Return %i damage\n",
+	
+	weaken = "Reduce damage dealt by %i\n",
 	vulnerability = "Increase damage taken by %i\n",
+	
+	stun = "You cannot take actions",
+	
+	thorns = "Return %i damage\n",
 	heal = "Restore %i health\n",
 	burn = "Take %i damage\n",
 	
@@ -1159,11 +1179,11 @@ function preDragonEffects( col, zone )
 		if (object.tag == "Figurine" and object.getLock()) and object.getName()~="Loot" then
 			local desc = object.getDescription()
 			local addDmg = math.max(tonumber( desc:match("Deal (%d+) damage") ) or 0, 0)
+			local reduceDmg = math.max(tonumber( desc:match("Reduce damage dealt by (%d+)") ) or 0, 0)
 			local addHeal = math.max(tonumber( desc:match("Restore (%d+) health") ) or 0, 0)
 			
-			dmg = dmg + addDmg
+			dmg = dmg + addDmg - reduceDmg
 			heal = heal + addHeal
-			
 		end
 	end
 	
