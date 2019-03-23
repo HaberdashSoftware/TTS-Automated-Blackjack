@@ -566,7 +566,7 @@ function doPrestigeDestructionBagCallback(obj, data)
 	if data.destroyChips and obj.tag=="Chip" and not powerupEffectTable[obj.getName()] then return obj.destruct() end
 	
 	local name = obj.getVar("__trader_ObjectName") or obj.getName()
-	if data.destroyPrestige and (newObj.getVar("PrestigeLevel") or ((string.match(name(), "New player") or string.match(name, "Prestige %d+")) and not string.find(name, "Trophy"))) then
+	if data.destroyPrestige and (obj.getVar("PrestigeLevel") or ((string.match(name, "New player") or string.match(name, "Prestige %d+")) and not string.find(name, "Trophy"))) then
 		return obj.destruct()
 	end
 	
@@ -3733,12 +3733,13 @@ function getPrestige(zone)
 	local set = findObjectSetFromZone(zone)
 	local zoneObjects = set.prestige.getObjects()
 	for i, object in ipairs(zoneObjects) do
-		-- local findStart, findEnd, findNumber = string.find(object.getVar("__trader_ObjectName") or object.getName(), "Prestige (%d+)")
-		-- if findStart and not string.find(object.getName(), "Trophy") then
-			-- return (tonumber(findNumber) or 0)
-		-- end
-		local level = obj.getVar("PrestigeLevel")
+		local level = object.getVar("PrestigeLevel")
 		if level then return level end
+		
+		local findStart, findEnd, findNumber = string.find(object.getVar("__trader_ObjectName") or object.getName(), "Prestige (%d+)")
+		if findStart and not string.find(object.getName(), "Trophy") then
+			return (tonumber(findNumber) or 0)
+		end
 	end
 	return 0
 end
