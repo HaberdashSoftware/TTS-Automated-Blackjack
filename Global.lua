@@ -1620,7 +1620,7 @@ end
 
 --Gets a list of names from the card if they are face up
 function obtainCardNames(set, cardList, deckList, figurineList)
-	local cardNames = {}
+	local validCards = {}
 	local facedownCount = 0
 	local facedownCard = nil
 	for i, card in ipairs(cardList) do
@@ -1630,7 +1630,7 @@ function obtainCardNames(set, cardList, deckList, figurineList)
 				resetTimer(3)
 				card.destruct()
 			end
-			table.insert(cardNames, card.getName())
+			table.insert(validCards, card.getName())
 		elseif set.color=="Dealer" then
 			facedownCount = facedownCount + 1
 			facedownCard = card
@@ -1645,14 +1645,14 @@ function obtainCardNames(set, cardList, deckList, figurineList)
 		end
 	end
 	for i, figurine in ipairs(figurineList) do
-		table.insert(cardNames, figurine.getName())
+		table.insert(validCards, figurine)
 	end
-	set.count = #cardNames
-	addCardValues(set, cardNames, facedownCount, facedownCard)
+	set.count = #validCards
+	addCardValues(set, validCards, facedownCount, facedownCard)
 end
 
 --Adds card values from their names
-function addCardValues(set, cardNames, facedownCount, facedownCard)
+function addCardValues(set, cardList, facedownCount, facedownCard)
 	local value = 0
 	local aceCount = 0
 	local sevenCount = 0
@@ -1660,8 +1660,8 @@ function addCardValues(set, cardNames, facedownCount, facedownCard)
 	local jokerCount = 0
 	local dealerBust = 0
 	local stopCount = false
-	for i, card in ipairs(cardNames) do
-		local v = cardNameTable[card]
+	for i, card in ipairs(cardList) do
+		local v = type(card)~="string" and (card.getVar("getCardValue") and card.Call("getCardValue") or cardNameTable[card.getName()]) or cardNameTable[card]
 		if v then
 			if v == 0 then
 				aceCount = aceCount + 1
@@ -1733,7 +1733,7 @@ function addCardValues(set, cardNames, facedownCount, facedownCard)
 	displayResult(set, value, soft)
 	--Checks for blackjack
 	if set.color=="Dealer" then
-		if #cardNames == 1 and facedownCount == 1 then
+		if #cardList == 1 and facedownCount == 1 then
 			checkForBlackjack(value, facedownCard)
 		end
 	end
@@ -2729,7 +2729,7 @@ function playerBankrupt(handler, color)
 			
 			doBankruptDestruction(set)
 			
-			local newObj = takeObjectFromContainer( set.tbl, "15a03a" )
+			local newObj = takeObjectFromContainer( set.tbl, "15a03a", {0,0.5,-0.45} )
 			if newObj then
 				local oldDesc = newObj.getDescription()
 				newObj.setDescription( ("%s - %s\n\n%s"):format(Player[color].steam_id, Player[color].steam_name, oldDesc) )
@@ -3130,7 +3130,7 @@ local function repeatBet( color, set, setTarget, addHeight )
 				
 				bet.setRotation({0,0,0})
 				local pos = bet.getPosition()
-				pos.y = pos.y + 2
+				pos.y = pos.y + 10
 				
 				local objs = {}
 				local goodIDs = bet.getTable("Blackjack_BetBagContents")
@@ -3163,6 +3163,7 @@ local function repeatBet( color, set, setTarget, addHeight )
 				
 				for i=1,#objs do
 					bet.putObject(objs[i])
+					destroyObject(objs[i])
 				end
 				delayedCallback('validateBetBag', {bag=bet}, 0.1)
 			end
