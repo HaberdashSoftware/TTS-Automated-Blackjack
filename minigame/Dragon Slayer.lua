@@ -1001,7 +1001,7 @@ local effToString = {
 	weaken = "Reduce damage dealt by %i\n",
 	vulnerability = "Increase damage taken by %i\n",
 	
-	stun = "You cannot take actions",
+	stun = "You cannot take actions\n",
 	
 	thorns = "Return %i damage\n",
 	heal = "Restore %i health\n",
