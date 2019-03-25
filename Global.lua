@@ -1588,6 +1588,9 @@ function findCardsToCount()
 	timerStart()
 end
 function updateHandCounter( set )
+	if type(set)=="string" then
+		set = findObjectSetFromColor(set)
+	end
 	if not set then return end
 	
 	local cardList = findCardsInZone(set.zone)
