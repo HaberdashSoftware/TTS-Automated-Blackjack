@@ -1,7 +1,6 @@
 
-local function doAltClear(user, target, powerup, name)
-	Global.call( "forwardFunction", {function_name="clearCards", data={target.zone}} )
-	
+-- Create persistent powerup objects
+local function addPowerup(user, target, powerup, name, script)
 	local pos = Global.call("forwardFunction", {function_name="findPowerupPlacement", data={target.zone, 1}})
 	local clone = powerup.clone({position = pos})
 	clone.setPosition(pos)
@@ -9,9 +8,61 @@ local function doAltClear(user, target, powerup, name)
 	clone.setLock(true)
 	clone.setColorTint( stringColorToRGB(user.color) or {1,1,1} )
 	
-	clone.setLuaScript("")
+	clone.setLuaScript(script or "")
 	clone.setName(name)
 end
+local function doAltClear(user, target, powerup, name, script)
+	Global.call( "forwardFunction", {function_name="clearCards", data={target.zone}} )
+	
+	return addPowerup(user, target, powerup, name, script)
+end
+
+-- Spawned powerup scripts
+local fluxScript = [[
+targetHandCol = nil
+lastKnownPos = nil
+
+function findNewZone()
+	targetHandCol = nil
+	
+	local allSets = Global.getTable("objectSets")
+	for i=2,#allSets do
+		local set = allSets[i]
+		for _,obj in pairs(set.zone.getObjects()) do -- Loop through each set's objectSets
+			if obj==self then
+				targetHandCol = set.color
+				
+				return
+			end
+		end
+	end
+end
+function doCount()
+	if (not self) or self==nil then return end
+	if not self.getLock() then return end
+	
+	Wait.time(doCount, 0.3) -- Reset timer
+	
+	-- Verify current hand
+	if lastKnownPos then
+		local newPos = self.getPosition()
+		if newPos.x~=lastKnownPos.x or newPos.y~=lastKnownPos.y or newPos.z~=lastKnownPos.z then
+			findNewZone()
+		end
+	else
+		lastKnownPos = self.getPosition()
+	end
+	if not targetHandCol then return end
+	
+	-- Update
+	Global.call( "forwardFunction", {function_name="updateHandCounter", data={targetHandCol}} )
+end
+
+function getCardValue()
+	return math.random(-15,15)
+end]]
+
+-- Random effects table
 local effect = {
 	function(userSet, targetSet, pwup) -- Bust
 		doAltClear(userSet, targetSet, pwup, pwup.getName().. " (Bust)")
@@ -25,17 +76,11 @@ local effect = {
 	function(userSet, targetSet, pwup) -- Exit
 		Global.call( "forwardFunction", {function_name="clearCards", data={targetSet.zone}} )
 	end,
-	function(userSet, targetSet, pwup) -- Redraw
-		Global.call( "forwardFunction", {function_name="clearCards", data={targetSet.zone}} )
-		Global.call( "forwardFunction", {function_name="dealPlayer", data={targetSet.zone, {1,2}}} )
-	end,
 	function(userSet, targetSet, pwup) -- Draw One
 		Global.call( "forwardFunction", {function_name="forcedCardDraw", data={targetSet.zone}} )
 	end,
-	function(userSet, targetSet, pwup) -- Draw Two
-		local cards = Global.call( "forwardFunction", {function_name="findCardsInZone", data={targetSet.zone}} ) or {}
-		local decks = Global.call( "forwardFunction", {function_name="findDecksInZone", data={targetSet.zone}} ) or {}
-		Global.call( "forwardFunction", {function_name="dealPlayer", data={targetSet.zone, {#cards+#decks+1,#cards+#decks+2}}} )
+	function(userSet, targetSet, pwup) -- Flux
+		addPowerup(userSet, targetSet, pwup, pwup.getName().. " (Flux)", fluxScript)
 	end,
 	function(userSet, targetSet, pwup) -- Remove Card
 		local cards = Global.call( "forwardFunction", {function_name="findCardsInZone", data={targetSet.zone}} ) or {}
@@ -64,6 +109,8 @@ local effect = {
 		end
 	end,
 }
+
+-- On Used
 function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser zone
 	if Global.getVar("roundStateID")~=2 and Global.getVar("roundStateID")~=3 then return end
 	
@@ -106,6 +153,8 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 	
 	return true
 end
+
+-- On Load
 function onLoad()
 	Global.call("AddPowerup", {obj=self, who="Self Only", effectName="Chaos"} )
 	
