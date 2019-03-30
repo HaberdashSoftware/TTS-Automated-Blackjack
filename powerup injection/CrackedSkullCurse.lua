@@ -39,7 +39,7 @@ function powerupUsed( d )
 	end
 	
 	math.randomseed( os.time() )
-	local bustCount = math.random(1, math.min(20, #foundPlayers))
+	local bustCount = math.random(1, #foundPlayers)
 	
 	printToAll( ("Powerup event: %s has sold their soul to the Cracked Skull! %i other player%s bust."):format(d.setUser.color, bustCount or 0, bustCount==1 and " has" or "s have"), {0.5,0.5,1})
 	
@@ -78,6 +78,6 @@ function onLoad()
 	
 	local tbl = Global.getTable("cardNameTable")
 	tbl[self.getName()] = 100
-	tbl["Laughing Skull"] = 12
+	tbl["Laughing Skull"] = "Joker"
 	Global.setTable("cardNameTable", tbl)
 end

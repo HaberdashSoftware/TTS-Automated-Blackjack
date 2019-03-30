@@ -112,7 +112,7 @@ local objData = {
 	scale = {0.72,0.72,0.72},
 	mesh = {mesh="http://pastebin.com/raw.php?i=jSYpUdgu", diffuse="https://i.imgur.com/o9e0zob.png", material=1, specular_intensity=0.05, specular_sharpness=3, type=1},
 }
-local function doAddCard(user, target, powerup, name, desc, image)
+local function doAddCard(user, target, value, name, desc, image)
 	local newMesh = {}
 	for k,v in pairs(objData.mesh) do newMesh[k]=v end
 	newMesh.diffuse = image or newMesh.diffuse
@@ -131,6 +131,12 @@ local function doAddCard(user, target, powerup, name, desc, image)
 	newObj.setDescription( desc or "" )
 	newObj.setScale( objData.scale or {1,1,1} )
 	newObj.setColorTint( stringColorToRGB(user.color) or {1,1,1} )
+	
+	if value then
+		newObj.setLuaScript( ([===[function getCardValue()
+			return %s
+		end]===]):format( type(value)=="string" and "\""..value.."\"" or tostring(value or 0) ) )
+	end
 end
 local effect = {
 	function(userSet, targetSet, pwup) -- Dragon's Luck (Add what you need)
@@ -139,16 +145,17 @@ local effect = {
 		local reqNum = 21 - (targetSet.value or 21)
 		local pwupName = ("Dragon's Luck (%+i)"):format(reqNum)
 		
-		local tbl = Global.getTable("cardNameTable")
-		tbl[pwupName] = reqNum
-		Global.setTable("cardNameTable", tbl)
+		if (targetSet.value>=68 and targetSet.value<=72) then
+			reqNum = "Joker"
+			pwupName = ("Dragon's Luck (Joker)"):format(reqNum)
+		end
 		
-		doAddCard(userSet, targetSet, pwup, pwupName, "You feel the dragon's luck wash over you.\n\nGives you what you need.", "https://i.imgur.com/U99uqPB.png")
+		doAddCard(userSet, targetSet, reqNum, pwupName, "You feel the dragon's luck wash over you.\n\nGives you what you need.", "https://i.imgur.com/U99uqPB.png")
 	end,
 	function(userSet, targetSet, pwup) -- Dragon's Blood (Joker)
 		printToAll("Powerup event: " ..userSet.color.. " has consumed a Dragon Heart and received Dragon's Blood!", {0.5,0.5,1})
 		
-		doAddCard(userSet, targetSet, pwup, "Dragon Blood", "The Dragon's blood courses through your veins.\n\nNothing can defeat you!", "https://i.imgur.com/L5NYlqv.png")
+		doAddCard(userSet, targetSet, "Joker", "Dragon Blood", "The Dragon's blood courses through your veins.\n\nNothing can defeat you!", "https://i.imgur.com/L5NYlqv.png")
 	end,
 	function(userSet, targetSet, pwup) -- Dragon's Hoard (6 card 21)
 		printToAll("Powerup event: " ..userSet.color.. " has consumed a Dragon Heart and found the Dragon's Hoard!", {0.5,0.5,1})
@@ -209,11 +216,6 @@ function onLoad()
 	local effectTable = Global.getTable("powerupEffectTable")
 	effectTable[self.getName()] = {who="Self Only", effect="DragonHeart"}
 	Global.setTable("powerupEffectTable", effectTable)
-	
-	local tbl = Global.getTable("cardNameTable")
-	tbl["Dragon's Lucky Number"] = 7
-	tbl["Dragon Blood"] = 12
-	Global.setTable("cardNameTable", tbl)
 end]]
 local rewardData = {
 	["1x Payout"] = {

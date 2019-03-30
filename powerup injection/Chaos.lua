@@ -114,6 +114,6 @@ function onLoad()
 	local tbl = Global.getTable("cardNameTable")
 	tbl[self.getName() .. " (Bust)"] = 100
 	tbl[self.getName() .. " (Blackjack)"] = 69
-	tbl[self.getName() .. " (Joker)"] = 68
+	tbl[self.getName() .. " (Joker)"] = "Joker"
 	Global.setTable("cardNameTable", tbl)
 end

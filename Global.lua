@@ -104,7 +104,8 @@ function onload()
 	cardNameTable = {
 		["Two"]=2, ["Three"]=3, ["Four"]=4, ["Five"]=5,
 		["Six"]=6, ["Seven"]=7, ["Eight"]=8, ["Nine"]=9, ["Ten"]=10,
-		["Jack"]=10, ["Queen"]=10, ["King"]=10, ["Ace"]=0, ["Joker"]=12,
+		["Jack"]=10, ["Queen"]=10, ["King"]=10, ["Ace"]="Ace", ["Joker"]="Joker",
+		
 		["+1 to anyone's hand"]=1, ["+1 to any player's hand"]=1, ["-1 from anyone's hand"]=-1,
 		["+3 to anyone's hand"]=3, ["+3 to any player's hand"]=3, ["-3 from anyone's hand"]=-3,
 		["+10 to your own hand"]=10, ["Discard your hand and stand on 19"]=19,
@@ -722,16 +723,20 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 		if (#cardsInZone>0 or #decksInZone>0) and (setTarget.value <= 21 or (setTarget.value>=68 and setTarget.value<=72)) then
 			if setTarget.color~=setUser.color and setTarget.UserColor~=setUser.color then
 				local dealerValue = objectSets[1].value
+				local targetValue = setTarget.value
 				local v = cardNameTable[powerup.getName()] or 0
+				if v=="Ace" then v = 11 end
 				
-				if (setTarget.value>dealerValue and v<=dealerValue) or (setTarget.value==dealerValue and v<dealerValue) then
-					if setUser.value<setTarget.value and not GetSetting("Powerups.AllowHostile", true) then
+				if v~="Joker" and (setTarget.value>dealerValue and v<=dealerValue) or (setTarget.value==dealerValue and v<dealerValue) then
+					if setUser.value<targetValue and not GetSetting("Powerups.AllowHostile", true) then
 						broadcastToColor("This powerup cannot be used to make another player lose.", setUser.color, {1,0.5,0.5})
 						
 						return false
 					end
-				elseif dealerValue<=21 and v>0 and (v<=21 and ((v>dealerValue and setTarget.value<=dealerValue) or (v>=dealerValue and setTarget.value<dealerValue))) or (setTarget.value<=dealerValue and v>=68 and v<=72) then
-					giveReward( "Help", setUser.zone )
+				elseif (dealerValue<=21 or dealerValue<=68) and (v=="Joker" or (v>=dealerValue and (v<=21 or (v>=68 and v<=72)))) then
+					if (targetValue<dealerValue) or (targetValue==dealerValue and v>dealerValue) then
+						giveReward( "Help", setUser.zone )
+					end
 				end
 			end
 			
@@ -922,7 +927,8 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 			if x < 3 then
 				card.destruct()
 			else
-				local cardValue = (card.getName()=="Ace" and 1) or cardNameTable[card.getName()] or 0
+				local cardValue = tonumber((card.getName()=="Ace" and 1) or cardNameTable[card.getName()]) or 0
+				
 				newValue = newValue + cardValue
 			end
 		end
@@ -948,7 +954,7 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 		local decksInZone = findCardsInZone(setTarget.zone)
 		if #cardsInZone>0 or #decksInZone>0 then
 			local nextCard = (mainDeck.getObjects()[1] or {}).nickname or ""
-			local nextCardValue = (nextCard=="Ace" and 1) or cardNameTable[nextCard] or 0 -- Counts joker as 12, but whatever
+			local nextCardValue = tonumber((nextCard=="Ace" and 1) or cardNameTable[nextCard]) or 0
 			
 			if setTarget.color=="Dealer" then
 				if (setTarget.value<=21 and setTarget.value+nextCardValue>21) or (setTarget.value>=68 and setTarget.value<=72) then
@@ -1079,8 +1085,10 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 		if roundStateID~=2 and roundStateID~=3 then return end
 		
 		if (#findCardsInZone(setTarget.zone)>0 or #findDecksInZone(setTarget.zone)>0 or #findFigurinesInZone(setTarget.zone)>1) then
-			local powerupValue = cardNameTable[powerup.getName()] or 0
-			-- findCardsToCount() -- Recount
+			local powerupValue = (powerup.getVar("getCardValue") and powerup.Call("getCardValue")) or cardNameTable[powerup.getName()]
+			if powerupValue=="Ace" then powerupValue = (setTarget.value<=10 and 11 or 1) end
+			powerupValue = tonumber(powerupValue) or 0
+			
 			updateHandCounter( setTarget )
 			
 			if setTarget.color=="Dealer" then
@@ -1669,7 +1677,7 @@ function addCardValues(set, cardList, facedownCount, facedownCard)
 	for i, card in ipairs(cardList) do
 		local v = type(card)~="string" and (card.getVar("getCardValue") and card.Call("getCardValue") or cardNameTable[card.getName()]) or cardNameTable[card]
 		if v then
-			if v == 0 then
+			if v == "Ace" then
 				aceCount = aceCount + 1
 			elseif v == 7 then
 				sevenCount = sevenCount + 1
@@ -1679,7 +1687,7 @@ function addCardValues(set, cardList, facedownCount, facedownCard)
 				aceCount = aceCount + 1
 				tenCount = tenCount + 1
 				v = 10
-			elseif (v==12 or v==68) then
+			elseif (v=="Joker" or v==68) then
 				jokerCount = jokerCount + 1
 			elseif (v==71) then
 				jokerCount = jokerCount + 2
@@ -1711,7 +1719,7 @@ function addCardValues(set, cardList, facedownCount, facedownCard)
 				end
 			end
 			if not stopCount then
-				value = value + v
+				value = value + (tonumber(v) or 0)
 			end
 		end
 	end
@@ -1828,7 +1836,7 @@ function checkForBlackjack(value, facedownCard)
 			facedownValue = v
 		end
 	end
-	if (facedownValue==0 and value==10) or (facedownValue==10 and value==11) then
+	if (facedownValue=="Ace" and value==10) or (facedownValue==10 and value==11) then
 		facedownCard.setRotation({0,0,0})
 		
 		local pos = facedownCard.getPosition()
@@ -3485,10 +3493,9 @@ function checkForBust(set, addCard)
 		delayedCallback('delayedPassPlayerActions', {zone=set.zone, color=set.color}, 0.5)
 	elseif addCard and cardNameTable[addCard] then
 		local val = cardNameTable[addCard]
-		if val==0 then val=1 end
-		if set.soft then val=val-10 end
+		if val=="Ace" then val=1 end
 		
-		if set.value+val>21 then
+		if cardNameTable[addCard]=="Joker" or ( set.value+(tonumber(val) or 0) > (set.soft and 31 or 21) ) then
 			clearPlayerActions(set.zone)
 			lockoutTimer(0.75)
 			
