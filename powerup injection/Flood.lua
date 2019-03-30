@@ -6,7 +6,7 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 	local cards = Global.call( "forwardFunction", {function_name="findCardsInZone", data={d.setTarget.zone}} )
 	local decksOne = Global.call( "forwardFunction", {function_name="findDecksInZone", data={d.setTarget.zone}} ) for i=1,#decksOne do table.insert(tableZ1, decksOne[i]) end
 	
-	if #cards==0 or (d.setTarget.value>=21 and (d.setTarget.value<68 or d.setTarget.value>72)) then
+	if #cards==0 or (d.setTarget.value>21 and (d.setTarget.value<68 or d.setTarget.value>72)) then
 		broadcastToColor("Must use powerup on a zone with cards in it. Cannot be used on a bust hand.", d.setUser.color, {1,0.5,0.5})
 		return
 	end
