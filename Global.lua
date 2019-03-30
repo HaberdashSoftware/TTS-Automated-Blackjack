@@ -362,6 +362,7 @@ function giveReward( id, zone )
 		set = findObjectSetFromColor(set.UserColor) or set
 		zone = set.zone
 	end
+	if not Player[set.color].seated then return end
 	
 	local params = {}
 	-- params.position = zone.getPosition()
@@ -386,7 +387,7 @@ function giveReward( id, zone )
 		else
 			obj = item.clone(params)
 			
-			obj.setDescription( ("%s - %s\n\n%s"):format(Player[set.color].steam_id, Player[set.color].steam_name, obj.getDescription()) )
+			obj.setDescription( ("%s - %s\n\n%s"):format(Player[set.color].steam_id, Player[set.color].steam_name or "No Name", obj.getDescription()) )
 		end
 		
 		if obj then
