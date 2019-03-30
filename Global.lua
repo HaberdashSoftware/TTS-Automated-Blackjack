@@ -1196,6 +1196,7 @@ function activatePowerupFailedCallback(data)
 			data.obj.lock()
 			cardNameTable["Fifth Card"] = nil
 			
+			data.target.count = data.target.count + 1 -- Immediately add one to count (prevents double fifth-card)
 			data.obj.setColorTint( stringColorToRGB(data.user.color) or {1,1,1} )
 			
 			if roundStateID==3 and roundTimer and roundTimer.getValue()<10 then
@@ -1211,22 +1212,23 @@ function activatePowerupEffect(effect, setTarget, powerup, setUser)
 	
 	if powerupEffectFunctions[effect] then
 		if not powerupEffectFunctions[effect](setTarget, powerup, setUser) then
-			local timerID = "PowerupFailed"..tostring(powerup.getGUID())
-			Timer.destroy(timerID)
-			Timer.create( {identifier=timerID, function_name="activatePowerupFailedCallback", parameters={obj=powerup, user=setUser, target=setTarget}, delay=0} )
+			Wait.frames(function()
+				activatePowerupFailedCallback( {obj=powerup, user=setUser, target=setTarget} )
+			end, 1)
+			
 			return
 		end
 	elseif powerup.getVar("powerupUsed") then
 		if not powerup.call("powerupUsed", {setTarget=setTarget, powerup=powerup, setUser=setUser}) then
-			local timerID = "PowerupFailed"..tostring(powerup.getGUID())
-			Timer.destroy(timerID)
-			Timer.create( {identifier=timerID, function_name="activatePowerupFailedCallback", parameters={obj=powerup, user=setUser, target=setTarget}, delay=0} )
+			Wait.frames(function()
+				activatePowerupFailedCallback( {obj=powerup, user=setUser, target=setTarget} )
+			end, 1)
 			return
 		end
 	else
-		local timerID = "PowerupFailed"..tostring(powerup.getGUID())
-		Timer.destroy(timerID)
-		Timer.create( {identifier=timerID, function_name="activatePowerupFailedCallback", parameters={obj=powerup, user=setUser, target=setTarget}, delay=0} )
+			Wait.frames(function()
+				activatePowerupFailedCallback( {obj=powerup, user=setUser, target=setTarget} )
+			end, 1)
 		return
 	end
 	
