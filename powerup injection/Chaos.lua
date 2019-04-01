@@ -36,6 +36,8 @@ function findNewZone()
 			end
 		end
 	end
+	
+	lastKnownPos = self.getPosition()
 end
 function doCount()
 	if (not self) or self==nil then return end
@@ -44,7 +46,9 @@ function doCount()
 	Wait.time(doCount, 0.3) -- Reset timer
 	
 	-- Verify current hand
-	if lastKnownPos then
+	if (not targetHandCol) then
+		findNewZone()
+	elseif lastKnownPos then
 		local newPos = self.getPosition()
 		if newPos.x~=lastKnownPos.x or newPos.y~=lastKnownPos.y or newPos.z~=lastKnownPos.z then
 			findNewZone()
@@ -56,6 +60,9 @@ function doCount()
 	
 	-- Update
 	Global.call( "forwardFunction", {function_name="updateHandCounter", data={targetHandCol}} )
+end
+function onLoad()
+	Wait.time(doCount, 0.3) -- Start timer
 end
 
 function getCardValue()
