@@ -2609,10 +2609,9 @@ function findPowerupPlacement(zone, spot)
 	if zone == objectSets[1].zone then -- Dealer
 		return {-8, 1.8, -8 + (1.5 * math.min(spot,3))}
 	else
-		local pos = zone.getPosition()
-		local column = math.min( math.floor((spot-1)/4)+1, 13 )
-		local row = (spot-1)%4
-		return {pos.x-2.5, pos.y-3 + (0.5*column), pos.z+2.5-(1.5*row)}
+		local column = math.min( math.floor((spot-1)/5)+1, 18 ) / 20
+		local row = ((spot-1)%5)/5
+		return zone.positionToWorld({0.5, column-0.45, -0.5 + row})
 	end
 end
 
