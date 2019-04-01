@@ -152,7 +152,10 @@ function doTrade(strCol, isUp)
 				params.callback_function = unlockObject
 			end
 			
-			chipConverter.Call( "spawnChip", {id=k, num=v, pos=params.position} )
+			local newChip = chipConverter.Call( "spawnChip", {id=k, num=v, pos=params.position} )
+			if newChip and not (newChip==nil) then
+				newChip.setDescription( ("%s - %s"):format(Player[strCol].steam_id, Player[strCol].steam_name) )
+			end
 		end
 	end
 	
