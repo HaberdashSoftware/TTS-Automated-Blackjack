@@ -710,6 +710,11 @@ powerupEffectFunctions = { -- So much cleaner and more efficient than the huge e
 				end
 			end
 			
+			if currentPlayerTurn==setTarget.color then
+				clearPlayerActions(setTarget.zone)
+				passPlayerActions(setTarget.zone)
+			end
+			
 			return true
 		else
 			broadcastToColor("Must use powerup on a zone with cards in it, also the targeted player must be losing and not busted.", setUser.color, {1,0.5,0.5})
