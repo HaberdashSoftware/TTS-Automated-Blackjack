@@ -32,9 +32,8 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 			return
 		end
 		
-		local cVal = Global.getTable("cardNameTable")[card.getName()]
-		if not cVal then return end -- Someone's done something bad
-		if cVal==0 then cVal=1 end -- Ace
+		local cardValueName = Global.getTable("cardNameTable")[card.getName()]
+		local cardValue = (cardValueName=="Ace" and 1) or tonumber(cardValueName) or 0
 		
 		-- Get new deck
 		local pos = d.powerup.getPosition()
@@ -61,13 +60,12 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 			local pos = card.getPosition()
 			local rot = card.getRotation()
 			local set = card.getTable("blackjack_playerSet")
-			card.destruct()
 			
 			-- Check rewards
 			local dlr = sets[1].value
 			if d.setUser.color~=d.setTarget.color and d.setUser.color~=d.setTarget.UserColor then
-				local newVal = d.setTarget.value - cVal + 1
-				local newHighVal = d.setTarget.value - cVal + 11
+				local newVal = d.setTarget.value - cardValue + 1
+				local newHighVal = d.setTarget.value - cardValue + 11
 				if d.setTarget.value>21 and (not (d.setTarget.value>=68 and d.setTarget.value<=72)) then -- Was bust
 					if d.setTarget.count<5 and ((newVal<=21 and newVal>=dlr) or (newHighVal<=21 and newHighVal>=dlr)) or ((newVal<=21 and newVal>dlr) or (newHighVal<=21 and newHighVal>dlr)) then
 						Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} )
@@ -76,6 +74,8 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 					Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} )
 				end
 			end
+			
+			card.destruct()
 			
 			-- Position Ace
 			foundAce.setPosition(pos)
