@@ -35,11 +35,11 @@ function powerupUsed( d ) -- data keys: setTarget zone, powerup object, setUser 
 		end
 		
 		local cVal = Global.getTable("cardNameTable")[card.getName()]
-		if not cVal then return end -- Someone's done something bad
-		if cVal==0 then cVal=1 end -- Ace
+		if not cVal then return end
+		if cVal=="Ace" then cVal=1 end -- Ace
 		
 		if d.setUser.color~=d.setTarget.color and d.setUser.color~=d.setTarget.UserColor then
-			local newVal = d.setTarget.value + cVal
+			local newVal = d.setTarget.value + (tonumber(cVal) or 0)
 			if newVal>=68 and newVal<=72 and d.setTarget.count<4 then -- Special hand
 				Global.call( "forwardFunction", {function_name="giveReward", data={"Help", d.setUser.zone}} )
 			elseif newVal<=21 and (not (d.setTarget.value>=68 and d.setTarget.value<=72)) and newVal>dlr and dlr<=21 and d.setTarget.value<=dlr then
