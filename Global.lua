@@ -2611,7 +2611,7 @@ function findPowerupPlacement(zone, spot)
 	else
 		local column = math.min( math.floor((spot-1)/5)+1, 18 ) / 20
 		local row = ((spot-1)%5)/5
-		return zone.positionToWorld({0.5, column-0.45, -0.5 + row})
+		return zone.positionToWorld({0.5, column-0.45, -0.5 + row*1.1})
 	end
 end
 
