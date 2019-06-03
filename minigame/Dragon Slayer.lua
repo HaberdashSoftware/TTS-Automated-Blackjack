@@ -1046,7 +1046,7 @@ function addEffect( col, zone, name, effect, addPos )
 	end
 	
 	local pos = Global.call( "forwardFunction", {function_name="findPowerupPlacement", data={zone, #foundEffects + 1 + (addPos or 0)}} )
-	pos[1] = pos[1] + 4.5
+	pos.x = (pos.x or pos[1]) + 4.5
 	
 	local effColor = col=="Dragon" and {r=0.5,g=0.5,b=0.5} or stringColorToRGB(col)
 	createEffectObject( pos, effect.icon, effect.name or name or "<effect>", desc, effColor )
@@ -1432,7 +1432,7 @@ function cleanupEffects( ignoreTurns )
 		
 		for i=1,#remainingObjects do
 			local newPos = Global.call( "forwardFunction", {function_name="findPowerupPlacement", data={set.zone, i}} )
-			newPos[1] = newPos[1] + 4.5
+			newPos.x = (newPos.x or newPos[1]) + 4.5
 			
 			remainingObjects[i].setPosition( newPos )
 			remainingObjects[i].setRotation({0,0,0})
