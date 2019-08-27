@@ -143,40 +143,6 @@ function onload()
 	
 	betBags = getObjectFromGUID("697122")
 	
-	hostSettings = {
-		iDealerStand = getObjectFromGUID("f87906"),
-		
-		bRupeeLimit = getObjectFromGUID("dbdb45"),
-		iRupeeMax = getObjectFromGUID("b1adba"),
-		
-		bTurnLimit = getObjectFromGUID("f7ae23"),
-		iTurnTime = getObjectFromGUID("a478bf"),
-		bTurnLimitEndsEarly = getObjectFromGUID("bd42ce"),
-		
-		bHostilePowerups = getObjectFromGUID("0cfeee"),
-		bPrestigeClearChip = getObjectFromGUID("d22476"),
-		bPrestigeClearPower = getObjectFromGUID("ee4f48"),
-		
-		bBankruptClearChip = getObjectFromGUID("176215"),
-		bBankruptClearPower = getObjectFromGUID("d507ce"),
-		bBankruptClearPrestige = getObjectFromGUID("420f3e"),
-		
-		bPowerupsAlwaysFifthCard = getObjectFromGUID("6e42d2"),
-		bSplitOnValue = getObjectFromGUID("ee7eef"),
-		bRevealIsHelp = getObjectFromGUID("17c020"),
-		bMultiHelpRewards = getObjectFromGUID("47c99e"),
-		
-		iTimeBet = getObjectFromGUID("e6f539"),
-		iTimePowerup = getObjectFromGUID("4e2af5"),
-		
-		bAutoMinigames = getObjectFromGUID("c756e3"),
-		
-		bAllowChipTrading = getObjectFromGUID("3bac86"),
-		iMultiplyPayouts = getObjectFromGUID("fed1d0"),
-		
-		bDealerAceIsOne = getObjectFromGUID("1ab0a8"),
-	}
-	
 	deckBag = getObjectFromGUID("eaa77b")
 	minigameBag = getObjectFromGUID("5b38f8")
 	bonusBag = getObjectFromGUID("91fe78")
@@ -563,57 +529,7 @@ function unlockPrestigeDestructionBag(data)
 		end
 	end
 end
-function doPrestigeDestructionBagCallback(obj, data)
-	if data.destroyPowerups and powerupEffectTable[obj.getName()] then return obj.destruct() end
-	if data.destroyChips and obj.tag=="Chip" and not powerupEffectTable[obj.getName()] then return obj.destruct() end
-	
-	local name = obj.getVar("__trader_ObjectName") or obj.getName()
-	if data.destroyPrestige and (obj.getVar("PrestigeLevel") or ((string.match(name, "New player") or string.match(name, "Prestige %d+")) and not string.find(name, "Trophy"))) then
-		return obj.destruct()
-	end
-	
-	if obj.getVar("onBlackjackDestroyItems") then
-		obj.Call("onBlackjackDestroyItems", {destroyChips=data.destroyChips, destroyPowerups=data.destroyPowerups, destroyPrestige=data.destroyPrestige} )
-		
-		obj.unlock()
-		if data and data.container and not (data.container and data.container==nil) then -- I've not checked if a != operator returns as expected for null objects, so I'm using not ==
-			data.container.putObject( obj )
-		elseif data and data.setContainer and not (data.setContainer and data.setContainer==nil) then
-			data.setContainer.putObject( obj )
-		end
-	elseif obj.tag=="Bag" then
-		local params = {}
-		params.position = obj.getPosition()
-		params.params = {destroyChips=data.destroyChips, destroyPowerups=data.destroyPowerups, container=obj, setContainer=data.setContainer}
-		params.position.y = params.position.y + 8
-		params.callback = "doPrestigeDestructionBagCallback"
-		if params.position.y>=35 then
-			params.position.y = 5
-			params.position.z = params.position.z + 1.5
-		end
-		params.callback_owner = Global
-		
-		for i=1, obj.getQuantity() do
-			local taken = obj.takeObject(params)
-			
-			taken.lock()
-			params.position.y = params.position.y + 2
-			if params.position.y>=35 then
-				params.position.y = 5
-				params.position.z = params.position.z + 1.5
-			end
-		end
-		
-		delayedCallback('unlockPrestigeDestructionBag', {bag=obj, container=data.container, setContainer=data.setContainer}, 2)
-	else
-		obj.unlock()
-		if data and data.container and not (data.container and data.container==nil) then -- I've not checked if a != operator returns as expected for null objects, so I'm using not ==
-			data.container.putObject( obj )
-		elseif data and data.setContainer and not (data.setContainer and data.setContainer==nil) then
-			data.setContainer.putObject( obj )
-		end
-	end
-end
+
 function doPrestigeDestruction(set)
 	local destroyChips = GetSetting("Prestige.ClearChips", true)
 	local destroyPowerups = GetSetting("Prestige.ClearPowerups", true)
@@ -628,61 +544,135 @@ function doBankruptDestruction(set)
 	return doChipDestruction( set, destroyChips, destroyPowerups, destroyPrestige )
 end
 function doChipDestruction( set, destroyChips, destroyPowerups, destroyPrestige )
-	if destroyChips or destroyPowerups or destroyPrestige then
-		local zoneObjects = set.zone.getObjects()
-		local tableObjects = set.tbl.getObjects()
-		local prestigeObjects = set.prestige.getObjects()
-		
-		for _,zone in pairs({zoneObjects, tableObjects, prestigeObjects}) do
-			for _, obj in ipairs(zone) do
-				local name = obj.getVar("__trader_ObjectName") or obj.getName()
-				if obj.getVar("onBlackjackDestroyItems") then
-					obj.Call("onBlackjackDestroyItems", {destroyChips=destroyChips, destroyPowerups=destroyPowerups, destroyPrestige=destroyPrestige} )
-				elseif destroyChips and obj.tag == "Chip" then
-					if destroyPowerups or (not powerupEffectTable[obj.getName()]) then
-						destroyObject(obj)
-					end
-				elseif destroyPowerups and powerupEffectTable[obj.getName()] then
+	if not (destroyChips or destroyPowerups or destroyPrestige) then return end
+	
+	local zoneObjects = set.zone.getObjects()
+	local tableObjects = set.tbl.getObjects()
+	local prestigeObjects = set.prestige.getObjects()
+	
+	local ownedContainers = {}
+	for _,zone in pairs({zoneObjects, tableObjects, prestigeObjects}) do
+		for _, obj in ipairs(zone) do
+			local name = obj.getVar("__trader_ObjectName") or obj.getName()
+			if obj.getVar("onBlackjackDestroyItems") then
+				obj.Call("onBlackjackDestroyItems", {destroyChips=destroyChips, destroyPowerups=destroyPowerups, destroyPrestige=destroyPrestige} )
+			elseif destroyChips and obj.tag == "Chip" then
+				if destroyPowerups or (not powerupEffectTable[obj.getName()]) then
 					destroyObject(obj)
-				elseif destroyPrestige and (obj.getVar("PrestigeLevel") or ((string.match(name, "New player") or string.match(name, "Prestige %d+")) and not string.find(name, "Trophy"))) then
-					destroyObject(obj)
-				elseif obj.tag=="Bag" then
-					local params = {}
-					params.position = obj.getPosition()
-					params.params = {destroyChips=destroyChips, destroyPowerups=destroyPowerups, destroyPrestige=destroyPrestige, container=obj, setContainer=set.container}
-					params.position.y = params.position.y + 8
-					params.callback = "doPrestigeDestructionBagCallback"
-					params.callback_owner = Global
-					
-					for i=1, obj.getQuantity() do
-						local taken = obj.takeObject(params)
-						
-						taken.lock()
-						params.position.y = params.position.y + 2
-					end
 				end
+			elseif destroyPowerups and powerupEffectTable[obj.getName()] then
+				destroyObject(obj)
+			elseif destroyPrestige and (obj.getVar("PrestigeLevel") or ((string.match(name, "New player") or string.match(name, "Prestige %d+")) and not string.find(name, "Trophy"))) then
+				destroyObject(obj)
+			elseif obj.tag=="Bag" then
+				ownedContainers[obj] = true
 			end
 		end
-		
-		local plyID = Player[set.color].seated and Player[set.color].steam_id
-		for _,obj in pairs(getAllObjects()) do -- Simpler destruction here, only check first layer
-			local name = obj.getVar("__trader_ObjectName") or obj.getName()
-			local objID = obj.getDescription():match("^(%d+) %- .*")
-			if objID and objID==plyID then
-				if obj.getVar("onBlackjackDestroyItems") then
+	end
+	
+	local plyID = Player[set.color].seated and Player[set.color].steam_id
+	for _,obj in pairs(getAllObjects()) do
+		if obj.tag=="Bag" then
+			beginRecursiveBagCleanup( obj, plyID, destroyChips, destroyPowerups, destroyPrestige, ownedContainers[obj] )
+		else
+			if obj.getVar("onBlackjackDestroyItems") then
+				if obj.getDescription():match("^(%d+) %- .*")==plyID then
 					obj.Call("onBlackjackDestroyItems", {destroyChips=destroyChips, destroyPowerups=destroyPowerups, destroyPrestige=destroyPrestige} )
-				elseif destroyChips and obj.tag=="Chip" then
-					if destroyPowerups or (not powerupEffectTable[obj.getName()]) then
+				end
+			elseif destroyChips and obj.tag=="Chip" then
+				if destroyPowerups or (not powerupEffectTable[obj.getName()]) then
+					if obj.getDescription():match("^(%d+) %- .*")==plyID then
 						destroyObject(obj)
 					end
-				elseif destroyPowerups and powerupEffectTable[obj.getName()] then
+				end
+			elseif destroyPowerups and powerupEffectTable[obj.getName()] then
+				if obj.getDescription():match("^(%d+) %- .*")==plyID then
 					destroyObject(obj)
-				elseif destroyPrestige and (obj.getVar("PrestigeLevel") or ((string.match(name, "New player") or string.match(name, "Prestige %d+")) and not string.find(name, "Trophy"))) then
-					destroyObject(obj)
+				end
+			elseif destroyPrestige then
+				local name = obj.getVar("__trader_ObjectName") or obj.getName()
+				if (obj.getVar("PrestigeLevel") or ((string.match(name, "New player") or string.match(name, "Prestige %d+")) and not string.find(name, "Trophy"))) then
+					if obj.getDescription():match("^(%d+) %- .*")==plyID then
+						destroyObject(obj)
+					end
 				end
 			end
 		end
 	end
+end
+
+function beginRecursiveBagCleanup( bag, id, destroyChips, destroyPowerups, destroyPrestige, skipIDChecks )
+	if bag.getName()=="Save storage" and bag.getLock() then -- Save storage bag
+		if bag.getVar("doPrestige") then
+			bag.Call("doPrestige", {id=id, destroyChips=destroyChips, destroyPowerups=destroyPowerups, destroyPrestige=destroyPrestige})
+		end
+		
+		return bag
+	end
+	if bag.getQuantity()<=0 then return bag end -- Empty, skip
+	
+	-- Yes, this is horrible
+	-- It's the only way to get the proper data, and with json we can cleanly remove items
+	-- Definitely causes lag, though
+	local bagData = JSON.decode(bag.getJSON() or "")
+	if not bagData then return bag end
+	
+	local shouldRespawn = doRecursiveBagCleanup( bagData, id, destroyChips, destroyPowerups, destroyPrestige, skipIDChecks ) -- Do cleanup
+	if shouldRespawn then
+		local newBag = spawnObjectJSON( {json=JSON.encode(bagData), sound=false} ) -- Respawn with removed data
+		
+		for i=1,#objectSets do -- Fix objects table
+			if objectSets[i].container==bag then
+				objectSets[i].container = newBag
+			end
+		end
+		
+		bag.destruct() -- Remove old container
+		
+		return newBag
+	end
+	
+	return bag
+end
+function doRecursiveBagCleanup( tbl, id, destroyChips, destroyPowerups, destroyPrestige, skipIDChecks )
+	if not (tbl and tbl.ContainedObjects) then return false end
+	
+	local shouldRespawn = false
+	for i=#tbl.ContainedObjects,1,-1 do
+		local item = tbl.ContainedObjects[i]
+		
+		-- local objID = item.Description:match("^(%d+) %- .*")
+		if item.Name=="Custom_Model_Bag" or item.Name=="Bag" then -- Bag or other container
+			shouldRespawn = doRecursiveBagCleanup( item, id, destroyChips, destroyPowerups, destroyPrestige, skipIDChecks ) or shouldRespawn
+		elseif powerupEffectTable[item.Nickname] then -- Powerup
+			if destroyPowerups and (skipIDChecks or item.Description:match("^(%d+) %- .*")==id) then
+				table.remove( tbl.ContainedObjects, i )
+				shouldRespawn = true
+			end
+		elseif item.Name=="Custom_Model" or item.Name=="Custom_Model_Stack" then
+			if item.CustomMesh.TypeIndex==5 then -- Custom chip
+				if destroyChips and (skipIDChecks or item.Description:match("^(%d+) %- .*")==id) then
+					table.remove( tbl.ContainedObjects, i )
+					shouldRespawn = true
+				end
+			elseif destroyPrestige then
+				if ((string.match(item.Nickname, "New player") or string.match(item.Nickname, "Prestige %d+")) and not string.find(item.Nickname, "Trophy")) or -- Prestige (name)
+				  item.LuaScript:match("[^%d%a]PrestigeLevel%s*=%s*%d+") or item.LuaScript:match("%\[nt]PrestigeLevel%s*=%s*(%d+%.?%d*)") then -- Prestige (script)
+					
+					if skipIDChecks or item.Description:match("^(%d+) %- .*")==id then
+						table.remove( tbl.ContainedObjects, i )
+						shouldRespawn = true
+					end
+				end
+			end
+		end
+	end
+	
+	if #tbl.ContainedObjects==0 then
+		tbl.ContainedObjects = nil
+	end
+	
+	return shouldRespawn
 end
 
 -- Activates a given effect. setTarget is the objectSets entry for where it was dropped. setUser is the set of the dropper
@@ -2738,11 +2728,17 @@ function playerBankrupt(handler, color)
 		local curTime = os.time()
 		if bankruptData[color] and (bankruptData[color].cooldown or 0)>curTime then
 			broadcastToColor( "Bankruptcy: Busy, please wait...", color, {1,0.25,0.25})
-		elseif (not bankruptData[color]) or bankruptData[color].id~=Player[color].steam_id or (bankruptData[color].time + 10 <= curTime) then -- First press
+			return
+		end
+		
+		if (not bankruptData[color]) or bankruptData[color].id~=Player[color].steam_id or (bankruptData[color].time + 10 <= curTime) then -- First press
 			broadcastToColor( "Bankruptcy: Are you sure you want to do this? You may lose your current items! Press again to confirm.", color, {1,0.25,0.25})
 			
 			bankruptData[color] = {id=Player[color].steam_id, time=curTime}
-		elseif not (bankruptData[color].lastDeclared and bankruptData[color].lastDeclared+20>curTime) then
+			return
+		end
+		
+		if not (bankruptData[color].lastDeclared and bankruptData[color].lastDeclared+20>curTime) then
 			bankruptData[color].cooldown = curTime+5
 			
 			doBankruptDestruction(set)

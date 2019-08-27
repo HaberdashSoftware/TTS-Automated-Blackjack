@@ -222,6 +222,14 @@ end
 -- Process Dropped Object --
 ----------------------------
 
+function getSaveFromID( id )
+	for _,box in ipairs(self.getObjects()) do
+		if box.name:find(id) then
+			return box
+		end
+	end
+end
+
 function onObjectEnterContainer(bag,o)
 	if o==self then
 		doPlacedInBag(bag)
@@ -242,14 +250,7 @@ function onObjectEnterContainer(bag,o)
 	
 	local params = {position = targetPos, smooth = false}
 	
-	local matchingSave
-	for _,box in ipairs(self.getObjects()) do
-		if box.name:find(foundID) then
-			matchingSave = box
-			break
-		end
-	end
-	
+	local matchingSave = getSaveFromID(foundID)
 	if matchingSave then
 		params.index = matchingSave.index
 		local deployedBox = self.takeObject(params)
@@ -369,6 +370,32 @@ function onDestroy()
 	local newObj = spawnObjectJSON(params)
 	newObj.setLuaScript( ThisScript )
 	newObj.setLock(true)
+end
+
+-- Process Prestige --
+----------------------
+
+function doPrestige( data )
+	if not (data.id and (data.destroyChips or data.destroyPowerups or data.destroyPrestige)) then return end
+	
+	local matchingSave = getSaveFromID( data.id )
+	if not matchingSave then return end
+	
+	local targetPos = self.getPosition()
+	targetPos.y = targetPos.y - 10
+	targetPos.z = targetPos.z - 5
+	
+	local params = {position = targetPos, smooth = false, index=matchingSave.index}
+	
+	local deployedBox = self.takeObject(params)
+	if not deployedBox then return end
+	
+	local newBox = Global.call( "forwardFunction", {function_name="beginRecursiveBagCleanup", data={deployedBox, data.id, data.destroyChips or false, data.destroyPowerups or false, data.destroyPrestige or false}} )
+	if newBox then
+		self.putObject(newBox)
+	else
+		self.putObject(deployedBox)
+	end
 end
 
 -- Process Load --
