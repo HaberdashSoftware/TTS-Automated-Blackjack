@@ -9,7 +9,7 @@
 --
 --
 -- Details
--- Collectable <append> - This is REQURIED on the first line of every collectable.
+-- Collectable <append> - This is REQUIRED on the first line of every collectable.
 --                        `Collectible` is also acceptable.
 --                        If you use the <append> value, it will be added to the end
 --                        of the collectable's name in the trade menu. This allows you
@@ -36,6 +36,7 @@
 --
 -- Limit <quantity> - The user can't purchase another of this item if they already have <quantity>.
 --                    If the item is part of a set, the limit counts for the entire set.
+--                    Limits will not be reliable for non-Blackjack tables.
 --                    
 --
 -- SpawnAs <name> - Optional. Renames this item when it is spawned. Can include additional variables
@@ -97,7 +98,7 @@ end
 -- Buy Item --
 --------------
 
-function spawnObject( item, c, spawnAs )
+function traderSpawnObject( item, c, spawnAs )
 	local ourColor = c and self.getName():lower():find(c:lower())
 	
 	local params = {}
@@ -141,10 +142,17 @@ function buyItem( data, c )
 		return
 	end
 	
+	-- Cooldown to give objects a chance to be destroyed
+	CooldownTime = os.time() + 0.25
+	Wait.frames(function() CooldownTime = nil end, 3) -- Clear cooldown after 3 frames, time value is a failsafe
+	
 	local ourColor = c and self.getName():lower():find(c:lower())
 	
-	if ourColor then
-		if (not AdminMode) and Global.getVar("findObjectSetFromColor") then -- TODO: Support for non-blackjack tables?
+	if AdminMode then
+		-- Spawn, no additional checks
+		traderSpawnObject( data.item, c, data.spawnAs )
+	elseif ourColor then
+		if Global.getVar("forwardFunction") and Global.getVar("findObjectSetFromColor") then -- Blackjack tables
 			local set = Global.call( "forwardFunction", {function_name="findObjectSetFromColor", data={c}} )
 			
 			if not set then
@@ -152,50 +160,104 @@ function buyItem( data, c )
 				return
 			end
 			
-			local zoneObjects = set.zone.getObjects()
-			local tableObjects = set.tbl.getObjects()
-			local prestigeObjects = set.prestige.getObjects()
+			local zoneObjects = {set.zone.getObjects(), set.tbl.getObjects(), set.prestige.getObjects()}
 			
+			-- Requirements
 			if data.req then
-				local req = {}
-				for i=1,#data.req do -- Copy table
-					req[data.req[i]] = true
+				if not processRequirements(c, data, zoneObjects) then return end
+			end
+			
+			-- Costs
+			if data.cost then
+				if data.costType==COST_ANY then
+					if not processCostAny(c, data, zoneObjects) then return end
+				else
+					if not processCostAll(c, data, zoneObjects) then return end
+				end
+			end
+			
+			-- Spawn
+			traderSpawnObject( data.item, c, data.spawnAs )
+		else -- Other tables
+			local traderScale = self.getScale()
+			
+			-- Create search zone
+			local zone = spawnObject({
+				type = "ScriptingTrigger",
+				position = self.positionToWorld({1.2, 1.6, 0}), rotation = self.getRotation(), scale = {2.7*traderScale[1],3,3*traderScale[3]},
+				sound = false,
+			})
+			
+			-- Add self-destruct script
+			zone.setLuaScript([[
+				function onLoad()
+					Wait.frames(function()
+						destroyObject(self)
+					end, 2)
+				end
+			]])
+			
+			-- Wait for object initialisation
+			Wait.frames(function()
+				local zoneObjects = {zone.getObjects()}
+				
+				-- Requirements
+				if data.req then
+					if not processRequirements(c, data, zoneObjects) then return end
 				end
 				
-				for _,zone in pairs({zoneObjects, tableObjects, prestigeObjects}) do
-					for _, obj in ipairs(zone) do
-						-- req[obj.getName():match("^%s*(.-)%s*$") or obj.getName() ] = nil
-						req[ getObjectName(obj) ] = nil -- Remove entry from table
+				-- Cost
+				if data.cost then
+					if data.costType==COST_ANY then
+						if not processCostAny(c, data, zoneObjects) then return end
+					else
+						if not processCostAll(c, data, zoneObjects) then return end
 					end
 				end
 				
-				for missing in pairs(req) do -- If at least one requirement isn't met
-					broadcastToColor( ("You need a %s on your table to buy this item."):format(tostring(missing)), c, {1,0.2,0.2} )
-					return
-				end
-			end
-			
-			if data.cost then
-				if data.costType==COST_ANY then
-					if not processCostAny(c, data, set) then return end
-				else
-					if not processCostAll(c, data, set) then return end
-				end
-			end
+				-- Spawn
+				traderSpawnObject( data.item, c, data.spawnAs )
+			end, 1)
 		end
-	elseif not AdminMode then
+	else
 		broadcastToColor( "You can't spawn items from other people's Traders. Toggle Admin Mode first.", c, {1,0.2,0.2} )
 		return
 	end
 	
-	-- Cooldown to give objects a chance to be destroyed
-	CooldownTime = os.time() + 0.25
-	Wait.frames(function() CooldownTime = nil end, 1) -- Clear cooldown after 1 frames, time value is a failsafe
-	
-	spawnObject( data.item, c, data.spawnAs )
+	-- traderSpawnObject( data.item, c, data.spawnAs )
 end
 
-function processCostAll( c, data, set )
+
+-- Process Requirements --
+--------------------------
+function processRequirements( c, data, zoneObjects )
+	if not Player[c].seated then return false end -- Player gone
+	
+	local req = {}
+	for i=1,#data.req do -- Copy table
+		req[data.req[i]] = true
+	end
+	
+	for _,zone in pairs(zoneObjects) do
+		for _, obj in ipairs(zone) do
+			req[ getObjectName(obj) ] = nil -- Remove entry from table
+		end
+	end
+	
+	for missing in pairs(req) do -- If at least one requirement isn't met
+		broadcastToColor( ("You need a %s on your table to buy this item."):format(tostring(missing)), c, {1,0.2,0.2} )
+		return false
+	end
+	
+	return true
+end
+
+
+-- Process Costs --
+-------------------
+function processCostAll( c, data, zoneObjects )
+	if not Player[c].seated then return false end -- Player gone
+	
 	local costData = data.cost
 	
 	local missingCost = TranslateSetsToItems( CopyTable(costData) )
@@ -204,11 +266,11 @@ function processCostAll( c, data, set )
 	local sort = function(a,b)
 		return self.positionToLocal(a.getPosition()).z > self.positionToLocal(b.getPosition()).z
 	end
-	local zoneObjects = set.zone.getObjects()  table.sort(zoneObjects, sort)
-	local tableObjects = set.tbl.getObjects()  table.sort(tableObjects, sort)
-	local prestigeObjects = set.prestige.getObjects()  table.sort(prestigeObjects, sort)
+	for i=1,#zoneObjects do
+		table.sort(zoneObjects[i], sort)
+	end
 	
-	for _,zone in pairs({zoneObjects, tableObjects, prestigeObjects}) do
+	for _,zone in pairs(zoneObjects) do
 		-- for j, item in ipairs(zone) do
 		for i=1,#zone do
 			local item = zone[i]
@@ -244,7 +306,7 @@ function processCostAll( c, data, set )
 		return false
 	end
 	
-	if exeedsLimits( data, {zoneObjects, tableObjects, prestigeObjects}, foundStacks ) then
+	if exeedsLimits( data, zoneObjects, foundStacks ) then
 		broadcastToColor( "You have already reached your limit for this item.", c, {1,0.2,0.2} )
 		return false
 	end
@@ -267,7 +329,9 @@ function processCostAll( c, data, set )
 	
 	return true
 end
-function processCostAny( c, data, set )
+function processCostAny( c, data, zoneObjects )
+	if not Player[c].seated then return false end -- Player gone
+	
 	local tblCost = data.cost
 	
 	local missingFromSets = {}
@@ -302,13 +366,12 @@ function processCostAny( c, data, set )
 	local sort = function(a,b)
 		return self.positionToLocal(a.getPosition()).z > self.positionToLocal(b.getPosition()).z
 	end
-	
-	local zoneObjects = set.zone.getObjects()  table.sort(zoneObjects, sort)
-	local tableObjects = set.tbl.getObjects()  table.sort(tableObjects, sort)
-	local prestigeObjects = set.prestige.getObjects()  table.sort(prestigeObjects, sort)
+	for i=1,#zoneObjects do
+		table.sort(zoneObjects[i], sort)
+	end
 	local done = false
 	
-	for _,zone in pairs({zoneObjects, tableObjects, prestigeObjects}) do
+	for _,zone in pairs(zoneObjects) do
 		-- for j, item in ipairs(zone) do
 		for i=1,#zone do
 			local item = zone[i]
@@ -355,7 +418,7 @@ function processCostAny( c, data, set )
 		broadcastToColor( "You don't have the necessary items on your table to buy this item.", c, {1,0.2,0.2} )
 		return false
 	end
-	if exeedsLimits( data, {zoneObjects, tableObjects, prestigeObjects}, foundStacks ) then
+	if exeedsLimits( data, zoneObjects, foundStacks ) then
 		broadcastToColor( "You have already reached your limit for this item.", c, {1,0.2,0.2} )
 		return false
 	end
@@ -378,6 +441,10 @@ function processCostAny( c, data, set )
 	
 	return true
 end
+
+
+-- Process Limits --
+--------------------
 
 function exeedsLimits( data, zones, skipObjects )
 	if not data.limit then return false end
@@ -439,6 +506,7 @@ function exeedsLimits( data, zones, skipObjects )
 	
 	return false
 end
+
 
 -- Register Items --
 --------------------
