@@ -1076,7 +1076,7 @@ end
 function createEffectObject( pos, icon, name, desc, col, scale )
 	effectMdl.diffuse = icon or effectIconDefault
 	
-	local obj = spawnObject({type = "Custom_Model", callback="resetObjectPosition", callback_owner=self, params={targetPos=pos}})
+	local obj = spawnObject({type = "Custom_Model", callback="resetObjectPosition", callback_owner=self, params={targetPos=pos}, position=pos})
 	obj.setCustomObject(effectMdl)
 	
 	obj.setPosition(pos)
