@@ -376,6 +376,12 @@ end
 
 --When an object is dropped by a player, we check if its name is on a powerup list
 function onObjectDropped(colorOfDropper, droppedObject)
+	-- Stacking check
+	local holding = Player[colorOfDropper].getHoldingObjects()
+	if #holding>0 then
+		return
+	end
+	
 	-- Dealer zone protections
 	if objectForceDropped[droppedObject] then
 		return
